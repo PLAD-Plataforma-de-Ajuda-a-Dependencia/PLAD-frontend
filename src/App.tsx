@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import PsicologoSolicita from './pages/psicologoSolicita'
 import AdminPsico from './pages/adminPsico'
 import Triagem from './pages/Triagem'
+import Calendario from './pages/Calendario'
 
 export default function App() {
     return (
@@ -16,6 +17,7 @@ export default function App() {
                 <Route path="/psicologoSolicita" element={<PsicologoSolicita />} />
                 <Route path="/adminPsico" element={<AdminPsico />} />
                 <Route path="/Triagem" element={<Triagem />} />
+                <Route path="/Calendario" element={<Calendario />} />
             </Routes>
         </BrowserRouter>
     )

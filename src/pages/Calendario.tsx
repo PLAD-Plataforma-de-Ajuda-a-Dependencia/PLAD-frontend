@@ -1,0 +1,360 @@
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import {
+    addMonths,
+    eachDayOfInterval,
+    endOfMonth,
+    endOfWeek,
+    format,
+    isSameDay,
+    isSameMonth,
+    isToday,
+    parseISO,
+    startOfMonth,
+    startOfWeek,
+    subMonths,
+} from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import {
+    LayoutDashboard,
+    CalendarDays,
+    Video,
+    Users,
+    ChevronLeft,
+    ChevronRight,
+    MoreHorizontal,
+    ExternalLink,
+    User,
+} from 'lucide-react'
+
+// Mesmos ícones usados no footer da Home
+import instaIcon from '../assets/insta.png'
+import youtubeIcon from '../assets/youtube.png'
+import xIcon from '../assets/x.png'
+import linkedinIcon from '../assets/linkedin.png'
+
+/**
+ * Uma reunião marcada em uma data.
+ * Por enquanto esses dados chegam via props (mock/estático).
+ * Depois é só trocar a origem: buscar do backend por mês/ano
+ * (ex: GET /reunioes?mes=10&ano=2025) e passar o array retornado
+ * pra esse mesmo componente — o calendário em si não muda.
+ */
+export interface Reuniao {
+    id: string
+    data: string // ISO "yyyy-MM-dd"
+    titulo: string
+    horaInicio: string // "18:30"
+    horaFim: string // "22:30"
+    responsavel?: string // ex: "PLAD Equipe"
+}
+
+interface CalendarioProps {
+    reunioes?: Reuniao[]
+    onDiaClick?: (data: Date, reunioesDoDia: Reuniao[]) => void
+}
+
+const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+
+/**
+ * Dados de teste inseridos manualmente, direto aqui no arquivo.
+ * Serve pra validar o calendário sem precisar de backend ainda.
+ * Quando integrar com o banco, é só remover esse array e passar
+ * as reuniões reais via prop `reunioes` (ou trocar o valor padrão
+ * abaixo por um fetch).
+ *
+ * IMPORTANTE: a data é sempre no formato ISO "yyyy-MM-dd".
+ */
+const REUNIOES_TESTE: Reuniao[] = [
+    {
+        id: '1',
+        data: '2026-09-22',
+        titulo: 'Apresentação do projeto',
+        horaInicio: '18:00',
+        horaFim: '22:00',
+        responsavel: 'PLAD Equipe',
+    },
+    {
+        id: '2',
+        data: '2026-09-05',
+        titulo: 'Reunião com psicólogo voluntário',
+        horaInicio: '09:00',
+        horaFim: '10:00',
+        responsavel: 'Dra. Ana Souza',
+    },
+    {
+        id: '3',
+        data: '2026-10-03',
+        titulo: 'Revisão de triagens',
+        horaInicio: '14:00',
+        horaFim: '15:30',
+    },
+]
+
+function capitalizar(texto: string) {
+    return texto.charAt(0).toUpperCase() + texto.slice(1)
+}
+
+export default function Calendario({ reunioes = REUNIOES_TESTE, onDiaClick }: CalendarioProps) {
+    const [mesAtual, setMesAtual] = useState(() => new Date())
+    const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null)
+
+    // Monta a grade de dias do mês (incluindo as pontas da semana anterior/seguinte,
+    // que ficam em branco) sempre em cima do mês atual — isso é o que faz o
+    // calendário responder à data real, e não a números fixos.
+    const dias = useMemo(() => {
+        const inicioMes = startOfMonth(mesAtual)
+        const fimMes = endOfMonth(mesAtual)
+        const inicioGrade = startOfWeek(inicioMes)
+        const fimGrade = endOfWeek(fimMes)
+        return eachDayOfInterval({ start: inicioGrade, end: fimGrade })
+    }, [mesAtual])
+
+    const semanas = useMemo(() => {
+        const linhas: Date[][] = []
+        for (let i = 0; i < dias.length; i += 7) {
+            linhas.push(dias.slice(i, i + 7))
+        }
+        return linhas
+    }, [dias])
+
+    function reunioesDoDia(dia: Date) {
+        return reunioes.filter((r) => isSameDay(parseISO(r.data), dia))
+    }
+
+    function handleClickDia(dia: Date) {
+        const doDia = reunioesDoDia(dia)
+        const chave = format(dia, 'yyyy-MM-dd')
+
+        if (doDia.length === 0) {
+            setDiaSelecionado(null)
+            return
+        }
+
+        setDiaSelecionado((atual) => (atual === chave ? null : chave))
+        onDiaClick?.(dia, doDia)
+    }
+
+    return (
+        <div className="w-full min-h-screen bg-[#f4f5fd] flex flex-col font-sans text-slate-900">
+          <div className="flex flex-1">
+            {/* Sidebar */}
+            <aside className="w-24 lg:w-28 bg-white flex flex-col items-center py-8 shadow-sm shrink-0">
+                <span className="font-extrabold text-sm tracking-wider text-black uppercase mb-10">
+                    PLAD
+                </span>
+
+                <nav className="flex flex-col items-center gap-8 flex-1">
+                    <SidebarLink to="/painel" icon={<LayoutDashboard size={20} />} label="Painel" />
+                    <SidebarLink to="/calendario" icon={<CalendarDays size={20} />} label="Calendário" active />
+                    <SidebarLink to="/reuniao" icon={<Video size={20} />} label="Reunião" />
+                    <SidebarLink to="/comunidade" icon={<Users size={20} />} label="Comunidade" />
+                </nav>
+
+                <button
+                    type="button"
+                    className="text-gray-400 hover:text-gray-600 transition mb-4"
+                    aria-label="Mais opções"
+                >
+                    <MoreHorizontal size={20} />
+                </button>
+                <div className="w-8 h-8 rounded-full bg-[#8397ff]" />
+            </aside>
+
+            {/* Conteúdo principal */}
+            <main className="flex-1 px-10 py-10">
+                <h1 className="text-2xl font-black text-black">Calendário de reuniões</h1>
+                <p className="text-gray-500 text-sm mt-1 mb-8">
+                    Visualize as reuniões marcadas e participe
+                </p>
+
+                <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100 border border-gray-100 p-8">
+                    {/* Cabeçalho do mês */}
+                    <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-lg font-bold text-black">
+                            {capitalizar(format(mesAtual, "MMMM 'de' yyyy", { locale: ptBR }))}
+                        </h2>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMesAtual((m) => subMonths(m, 1))
+                                    setDiaSelecionado(null)
+                                }}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition"
+                                aria-label="Mês anterior"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMesAtual((m) => addMonths(m, 1))
+                                    setDiaSelecionado(null)
+                                }}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition"
+                                aria-label="Próximo mês"
+                            >
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Dias da semana */}
+                    <div className="grid grid-cols-7 gap-3 mb-3">
+                        {DIAS_SEMANA.map((dia) => (
+                            <span
+                                key={dia}
+                                className="text-xs font-semibold text-gray-400 text-center uppercase tracking-wide"
+                            >
+                                {dia}
+                            </span>
+                        ))}
+                    </div>
+
+                    {/* Semanas */}
+                    <div className="flex flex-col gap-3">
+                        {semanas.map((semana, i) => (
+                            <div key={i} className="grid grid-cols-7 gap-3">
+                                {semana.map((dia) => {
+                                    const noMes = isSameMonth(dia, mesAtual)
+                                    const chave = format(dia, 'yyyy-MM-dd')
+
+                                    // Dias fora do mês atual ficam em branco, sem número —
+                                    // igual ao layout do Figma.
+                                    if (!noMes) {
+                                        return <div key={chave} className="h-16 rounded-2xl" />
+                                    }
+
+                                    const doDia = reunioesDoDia(dia)
+                                    const temReuniao = doDia.length > 0
+                                    const selecionado = diaSelecionado === chave
+
+                                    return (
+                                        <div key={chave} className="relative">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleClickDia(dia)}
+                                                className={[
+                                                    'h-16 w-full rounded-2xl flex items-start justify-start p-3 text-sm font-semibold transition text-left',
+                                                    selecionado
+                                                        ? 'bg-[#5271ff] text-white'
+                                                        : temReuniao
+                                                        ? 'bg-indigo-50 text-black hover:bg-indigo-100'
+                                                        : 'text-gray-700 hover:bg-gray-50',
+                                                    isToday(dia) && !selecionado ? 'ring-1 ring-[#5271ff]' : '',
+                                                ].join(' ')}
+                                            >
+                                                {format(dia, 'd')}
+                                            </button>
+
+                                            {selecionado && temReuniao && (
+                                                <div className="absolute z-20 top-0 left-full ml-3 w-64 bg-[#120063] text-white rounded-xl shadow-2xl p-4 space-y-3">
+                                                    <ExternalLink size={14} className="text-gray-300 ml-auto" />
+                                                    {doDia.map((r) => (
+                                                        <div key={r.id} className="space-y-1">
+                                                            <p className="font-bold text-sm leading-snug">{r.titulo}</p>
+                                                            <p className="text-xs text-gray-300">
+                                                                {capitalizar(
+                                                                    format(dia, "EEEE, d 'de' MMMM", { locale: ptBR })
+                                                                )}{' '}
+                                                                · {r.horaInicio} - {r.horaFim}
+                                                            </p>
+                                                            {r.responsavel && (
+                                                                <p className="flex items-center gap-1.5 text-xs text-gray-300 pt-1">
+                                                                    <User size={12} />
+                                                                    {r.responsavel}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </main>
+          </div>
+
+            {/* Footer */}
+            <footer id="contato" className="bg-[#120063] text-white py-12 px-8">
+                <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-gray-300">
+                    <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
+                        <span>Plad</span>
+                        <span>|</span>
+                        <span>Sobre</span>
+                        <span>|</span>
+                        <span>Ética e Compliance</span>
+                        <span>|</span>
+                        <span>Fale Conosco</span>
+                        <span>|</span>
+                        <span>Informações Legais</span>
+                        <span>|</span>
+                        <span>Privacidade</span>
+                    </div>
+
+                    {/* Ícones Sociais no Footer */}
+                    <div className="flex items-center space-x-5">
+                        <a href="#instagram" aria-label="Instagram" className="hover:opacity-80 transition-opacity">
+                            <img src={instaIcon} alt="Instagram" className="w-5 h-5 object-contain filter invert" />
+                        </a>
+                        <a href="#youtube" aria-label="YouTube" className="hover:opacity-80 transition-opacity">
+                            <img src={youtubeIcon} alt="YouTube" className="w-5 h-5 object-contain filter invert" />
+                        </a>
+                        <a href="#linkedin" aria-label="LinkedIn" className="hover:opacity-80 transition-opacity">
+                            <img src={linkedinIcon} alt="LinkedIn" className="w-5 h-5 object-contain filter invert" />
+                        </a>
+                        <a href="#x" aria-label="X" className="hover:opacity-80 transition-opacity">
+                            <img src={xIcon} alt="X" className="w-5 h-5 object-contain filter invert" />
+                        </a>
+                    </div>
+                </div>
+                <div className="max-w-7xl mx-auto mt-8 text-center md:text-left text-xs text-gray-400">
+                    © Plataforma de Ajuda a Dependência
+                </div>
+            </footer>
+        </div>
+    )
+}
+
+function SidebarLink({
+    to,
+    icon,
+    label,
+    active = false,
+}: {
+    to: string
+    icon: React.ReactNode
+    label: string
+    active?: boolean
+}) {
+    return (
+        <Link
+            to={to}
+            className={[
+                'flex flex-col items-center gap-1 text-[11px] font-medium transition',
+                active ? 'text-[#5271ff]' : 'text-gray-400 hover:text-gray-600',
+            ].join(' ')}
+        >
+            {icon}
+            {label}
+        </Link>
+    )
+}
+
+/**
+ * Como testar com datas manuais:
+ * basta editar o array REUNIOES_TESTE lá em cima — adicione,
+ * troque ou remova objetos com a data (ISO "yyyy-MM-dd"), título,
+ * horário e responsável que quiser. Como ele é o valor padrão da
+ * prop `reunioes`, renderizando <Calendario /> sem passar nada
+ * você já vê essas datas marcadas no mês certo.
+ *
+ * Se algum dia quiser passar reuniões vindas de outro lugar
+ * (ex: do banco), é só usar <Calendario reunioes={dadosReais} />
+ * — a prop explícita sempre sobrescreve o array de teste.
+ */
