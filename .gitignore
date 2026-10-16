@@ -12,11 +12,22 @@ dist
 dist-ssr
 *.local
 
+# Variáveis de ambiente (só o .env.example vai para o repositório)
+.env
+.env.*
+!.env.example
+
+# Claude Code: configurações pessoais (settings.json e agents/ são compartilhados)
+.claude/settings.local.json
+CLAUDE.local.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
+desktop.ini
 *.suo
 *.ntvs*
 *.njsproj
