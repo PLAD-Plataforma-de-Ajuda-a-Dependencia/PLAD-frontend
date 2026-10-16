@@ -1,19 +1,52 @@
-import React, { useState } from 'react'
+import { useState, type ChangeEvent, type FormEvent } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { login } from '../api/auth'
+import { ApiError, getErrorMessage } from '../api/client'
+import { saveToken } from '../api/token'
+
+// O state do router pode ser qualquer coisa (ex.: navegação manual), então é conferido em vez de convertido com `as`
+// Enviado pelas telas de cadastro depois que a conta é criada
+function getRegisteredEmail(state: unknown): string | undefined {
+    if (typeof state === 'object' && state !== null && 'email' in state && typeof state.email === 'string') {
+        return state.email
+    }
+    return undefined
+}
 
 export default function Login() {
+    const navigate = useNavigate()
+    const location = useLocation()
+    const registeredEmail = getRegisteredEmail(location.state)
+
     const [formData, setFormData] = useState({
-        email: '',
+        email: registeredEmail ?? '',
         password: '',
     })
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target
         setFormData((prev) => ({ ...prev, [name]: value }))
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
-        console.log('Dados do login:', formData)
+        setLoading(true)
+        setError(null)
+        try {
+            const { token } = await login({ email: formData.email, password: formData.password })
+            saveToken(token)
+            navigate('/Triagem', { replace: true })
+        } catch (err) {
+            if (err instanceof ApiError && err.status === 429) {
+                setError('Muitas tentativas. Aguarde um minuto e tente novamente.')
+            } else {
+                setError(getErrorMessage(err, 'Não foi possível entrar.'))
+            }
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -34,12 +67,19 @@ export default function Login() {
                     Insira seus dados de acesso para entrar no PLAD.
                 </p>
 
-                <form onSubmit={handleSubmit} className="w-full space-y-3.5">
+                {registeredEmail && (
+                    <p className="w-full mb-4 px-3.5 py-2.5 rounded-md bg-indigo-50 text-indigo-700 text-sm text-center">
+                        Conta criada! Entre com seu e-mail e senha.
+                    </p>
+                )}
+
+                <form id="login-form" onSubmit={handleSubmit} className="w-full space-y-3.5">
                     <div>
                         <input
                             type="email"
                             name="email"
                             placeholder="Endereço de E-mail"
+                            required
                             value={formData.email}
                             onChange={handleChange}
                             className="w-full px-3.5 py-2.5 border border-indigo-300 rounded-md text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition bg-white"
@@ -51,6 +91,7 @@ export default function Login() {
                             type="password"
                             name="password"
                             placeholder="Senha"
+                            required
                             value={formData.password}
                             onChange={handleChange}
                             className="w-full px-3.5 py-2.5 border border-indigo-300 rounded-md text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition bg-white"
@@ -66,14 +107,20 @@ export default function Login() {
                 </form>
             </main>
 
-            {/* Botão de Entrar centralizado no rodapé */}
+            {/* Botão de Entrar centralizado no rodapé (ligado ao form pelo atributo `form`) */}
             <footer className="w-full max-w-xs mx-auto pb-4">
+                {error && (
+                    <p role="alert" className="mb-3 text-sm text-red-600 text-center">
+                        {error}
+                    </p>
+                )}
                 <button
-                    onClick={handleSubmit}
                     type="submit"
-                    className="w-full py-3 px-6 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white font-medium rounded-lg transition-colors text-sm"
+                    form="login-form"
+                    disabled={loading}
+                    className="w-full py-3 px-6 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white font-medium rounded-lg transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                    Entrar
+                    {loading ? 'Entrando…' : 'Entrar'}
                 </button>
             </footer>
         </div>

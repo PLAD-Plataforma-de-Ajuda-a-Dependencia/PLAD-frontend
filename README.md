@@ -1,5 +1,13 @@
 # React + TypeScript + Vite
 
+## Configuração do PLAD
+
+1. Copie `.env.example` para `.env`. Ajuste `VITE_API_URL` se o backend não estiver em `http://localhost:8080`.
+2. Suba o backend antes do front. O CORS dele libera só `http://localhost:5173`, por isso o `vite.config.ts` usa `strictPort`.
+3. `npm install` e `npm run dev`.
+
+O front chama a API direto, sem proxy do Vite. Toda chamada passa por `src/api/client.ts`.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

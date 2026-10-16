@@ -9,4 +9,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  // O CORS do backend libera só http://localhost:5173: falha em vez de subir em outra porta
+  server: {
+    port: 5173,
+    strictPort: true,
+  },
 })

@@ -49,9 +49,12 @@ export default function Home() {
                         gratuito, acolhedor e livre de julgamentos.
                     </p>
                     <div className="pt-2">
-                        <button className="bg-[#5271ff] hover:bg-[#405de6] text-white font-bold text-sm uppercase tracking-wider py-4 px-10 rounded-2xl shadow-lg transition-colors">
+                        <Link
+                            to="/criar-conta"
+                            className="inline-block bg-[#5271ff] hover:bg-[#405de6] text-white font-bold text-sm uppercase tracking-wider py-4 px-10 rounded-2xl shadow-lg transition-colors"
+                        >
                             TRIAGEM
-                        </button>
+                        </Link>
                     </div>
                 </div>
 

@@ -1,6 +1,8 @@
-import React, { useState } from 'react'
-
-type CrmCrpType = 'CRM' | 'CRP'
+import { useState, type ChangeEvent, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { register } from '../api/auth'
+import { getErrorMessage } from '../api/client'
+import type { CadastroEtapa1, CrmCrpType } from '../api/auth'
 
 interface PsychologistFormData {
     graduate: string
@@ -8,23 +10,53 @@ interface PsychologistFormData {
     crmCrpNumber: string
 }
 
-export default function PsychologistRegister() {
+interface PsychologistRegisterProps {
+    // Dados da etapa 1, passados em memória por /criar-conta
+    etapa1: CadastroEtapa1
+}
+
+export default function PsychologistRegister({ etapa1 }: PsychologistRegisterProps) {
+    const navigate = useNavigate()
+
     const [formData, setFormData] = useState<PsychologistFormData>({
         graduate: '',
         credentialType: 'CRP',
         crmCrpNumber: '',
     })
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
     const handleChange = (
-        e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+        e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
     ) => {
         const { name, value } = e.target
         setFormData((prev) => ({ ...prev, [name]: value }))
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
-        console.log('Dados:', formData)
+        // O backend só recusa número nulo, então string em branco é barrada aqui
+        const crmCrpNumber = formData.crmCrpNumber.trim()
+        if (!crmCrpNumber) {
+            setError('Informe o número do registro.')
+            return
+        }
+
+        setLoading(true)
+        setError(null)
+        try {
+            await register({
+                ...etapa1,
+                credential_type: formData.credentialType,
+                crm_crp_number: crmCrpNumber,
+                graduate: formData.graduate.trim() || undefined,
+            })
+            navigate('/login', { replace: true, state: { email: etapa1.email } })
+        } catch (err) {
+            setError(getErrorMessage(err, 'Não foi possível concluir o cadastro.'))
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -45,7 +77,7 @@ export default function PsychologistRegister() {
                     Complete seu cadastro como psicólogo para começar a atender no PLAD.
                 </p>
 
-                <form onSubmit={handleSubmit} className="w-full space-y-3.5">
+                <form id="psicologo-form" onSubmit={handleSubmit} className="w-full space-y-3.5">
                     <div>
                         <input
                             type="text"
@@ -74,6 +106,7 @@ export default function PsychologistRegister() {
                             type="text"
                             name="crmCrpNumber"
                             placeholder="Número do registro (ex: 06/123456)"
+                            required
                             value={formData.crmCrpNumber}
                             onChange={handleChange}
                             className="w-full px-3.5 py-2.5 border border-indigo-300 rounded-md text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
@@ -92,14 +125,20 @@ export default function PsychologistRegister() {
                 </form>
             </main>
 
-            {/* Botão de Próximo centralizado no rodapé */}
+            {/* Botão centralizado no rodapé (ligado ao form pelo atributo `form`) */}
             <footer className="w-full max-w-xs mx-auto pb-4">
+                {error && (
+                    <p role="alert" className="mb-3 text-sm text-red-600 text-center">
+                        {error}
+                    </p>
+                )}
                 <button
-                    onClick={handleSubmit}
                     type="submit"
-                    className="w-full py-3 px-6 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-lg transition-colors text-sm"
+                    form="psicologo-form"
+                    disabled={loading}
+                    className="w-full py-3 px-6 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-lg transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                    Concluir cadastro
+                    {loading ? 'Enviando…' : 'Concluir cadastro'}
                 </button>
             </footer>
         </div>
