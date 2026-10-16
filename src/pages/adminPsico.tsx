@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 
 type CrmCrpType = 'CRM' | 'CRP'
 type RiskLevel = 'GREEN' | 'YELLOW' | 'RED'

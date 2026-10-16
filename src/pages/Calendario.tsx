@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
     addMonths,
@@ -214,8 +214,8 @@ export default function Calendario({ reunioes = REUNIOES_TESTE, onDiaClick }: Ca
 
                     {/* Semanas */}
                     <div className="flex flex-col gap-3">
-                        {semanas.map((semana, i) => (
-                            <div key={i} className="grid grid-cols-7 gap-3">
+                        {semanas.map((semana) => (
+                            <div key={format(semana[0], 'yyyy-MM-dd')} className="grid grid-cols-7 gap-3">
                                 {semana.map((dia) => {
                                     const noMes = isSameMonth(dia, mesAtual)
                                     const chave = format(dia, 'yyyy-MM-dd')
@@ -328,7 +328,7 @@ function SidebarLink({
     active = false,
 }: {
     to: string
-    icon: React.ReactNode
+    icon: ReactNode
     label: string
     active?: boolean
 }) {
@@ -345,16 +345,3 @@ function SidebarLink({
         </Link>
     )
 }
-
-/**
- * Como testar com datas manuais:
- * basta editar o array REUNIOES_TESTE lá em cima — adicione,
- * troque ou remova objetos com a data (ISO "yyyy-MM-dd"), título,
- * horário e responsável que quiser. Como ele é o valor padrão da
- * prop `reunioes`, renderizando <Calendario /> sem passar nada
- * você já vê essas datas marcadas no mês certo.
- *
- * Se algum dia quiser passar reuniões vindas de outro lugar
- * (ex: do banco), é só usar <Calendario reunioes={dadosReais} />
- * — a prop explícita sempre sobrescreve o array de teste.
- */
