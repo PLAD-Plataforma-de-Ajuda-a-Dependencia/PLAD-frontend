@@ -190,16 +190,16 @@ export default function Home() {
                     {/* Ícones Sociais no Footer */}
                     <div className="flex items-center space-x-5">
                         <a href="#instagram" aria-label="Instagram" className="hover:opacity-80 transition-opacity">
-                            <img src={instaIcon} alt="Instagram" className="w-5 h-5 object-contain filter invert" />
+                            <img src={instaIcon} alt="Instagram" className="w-5 h-5 object-contain" />
                         </a>
                         <a href="#youtube" aria-label="YouTube" className="hover:opacity-80 transition-opacity">
-                            <img src={youtubeIcon} alt="YouTube" className="w-5 h-5 object-contain filter invert" />
+                            <img src={youtubeIcon} alt="YouTube" className="w-5 h-5 object-contain" />
                         </a>
                         <a href="#linkedin" aria-label="LinkedIn" className="hover:opacity-80 transition-opacity">
-                            <img src={linkedinIcon} alt="LinkedIn" className="w-5 h-5 object-contain filter invert" />
+                            <img src={linkedinIcon} alt="LinkedIn" className="w-5 h-5 object-contain" />
                         </a>
                         <a href="#x" aria-label="X" className="hover:opacity-80 transition-opacity">
-                            <img src={xIcon} alt="X" className="w-5 h-5 object-contain filter invert" />
+                            <img src={xIcon} alt="X" className="w-5 h-5 object-contain" />
                         </a>
                     </div>
                 </div>
