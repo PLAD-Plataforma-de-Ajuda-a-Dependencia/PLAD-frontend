@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
     addMonths,
@@ -328,26 +328,7 @@ export default function Calendario({
                                                 </button>
 
                                                 {selecionado && temReuniao && (
-                                                    <div className="absolute z-20 top-0 left-full ml-3 w-64 bg-[#120063] text-white rounded-xl shadow-2xl p-4 space-y-3">
-                                                        <ExternalLink size={14} className="text-gray-300 ml-auto" />
-                                                        {doDia.map((r) => (
-                                                            <div key={r.id} className="space-y-1">
-                                                                <p className="font-bold text-sm leading-snug">{r.titulo}</p>
-                                                                <p className="text-xs text-gray-300">
-                                                                    {capitalizar(
-                                                                        format(dia, "EEEE, d 'de' MMMM", { locale: ptBR })
-                                                                    )}{' '}
-                                                                    · {r.horaInicio} - {r.horaFim}
-                                                                </p>
-                                                                {r.responsavel && (
-                                                                    <p className="flex items-center gap-1.5 text-xs text-gray-300 pt-1">
-                                                                        <User size={12} />
-                                                                        {r.responsavel}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                        ))}
-                                                    </div>
+                                                    <PopupReuniao dia={dia} reunioes={doDia} />
                                                 )}
                                             </div>
                                         )
@@ -396,6 +377,100 @@ export default function Calendario({
                     © Plataforma de Ajuda a Dependência
                 </div>
             </footer>
+        </div>
+    )
+}
+
+const MARGEM_TELA = 8 // folga mínima entre o popup e a borda da janela
+const DISTANCIA_POPUP = 12 // espaço entre o dia e o popup (equivale ao antigo ml-3)
+
+interface PosicaoPopup {
+    lado: 'direita' | 'esquerda'
+    vertical: 'topo' | 'base'
+    dx: number
+    dy: number
+}
+
+/**
+ * Popup com os detalhes das reuniões do dia. Abre à direita e alinhado ao topo
+ * do dia; se não couber na janela, vai para a esquerda e/ou sobe, e por fim é
+ * deslocado o mínimo necessário para ficar totalmente visível.
+ */
+function PopupReuniao({ dia, reunioes }: { dia: Date; reunioes: Reuniao[] }) {
+    const popupRef = useRef<HTMLDivElement>(null)
+    const [pos, setPos] = useState<PosicaoPopup>({ lado: 'direita', vertical: 'topo', dx: 0, dy: 0 })
+
+    useLayoutEffect(() => {
+        function reposicionar() {
+            const popup = popupRef.current
+            const ancora = popup?.parentElement
+            if (!popup || !ancora) return
+
+            const a = ancora.getBoundingClientRect()
+            const largura = popup.offsetWidth
+            const altura = popup.offsetHeight
+            const telaL = document.documentElement.clientWidth
+            const telaA = document.documentElement.clientHeight
+
+            const cabeDireita = a.right + DISTANCIA_POPUP + largura <= telaL - MARGEM_TELA
+            const cabeEsquerda = a.left - DISTANCIA_POPUP - largura >= MARGEM_TELA
+            const lado: PosicaoPopup['lado'] =
+                cabeDireita || (!cabeEsquerda && telaL - a.right >= a.left) ? 'direita' : 'esquerda'
+            const esquerda = lado === 'direita' ? a.right + DISTANCIA_POPUP : a.left - DISTANCIA_POPUP - largura
+
+            const vertical: PosicaoPopup['vertical'] = a.top + altura <= telaA - MARGEM_TELA ? 'topo' : 'base'
+            const topo = vertical === 'topo' ? a.top : a.bottom - altura
+
+            const limitar = (valor: number, tamanho: number, tela: number) =>
+                Math.max(MARGEM_TELA, Math.min(valor, tela - MARGEM_TELA - tamanho))
+
+            const proxima = {
+                lado,
+                vertical,
+                dx: Math.round(limitar(esquerda, largura, telaL) - esquerda),
+                dy: Math.round(limitar(topo, altura, telaA) - topo),
+            }
+            setPos((atual) =>
+                atual.lado === proxima.lado &&
+                atual.vertical === proxima.vertical &&
+                atual.dx === proxima.dx &&
+                atual.dy === proxima.dy
+                    ? atual
+                    : proxima
+            )
+        }
+
+        reposicionar()
+        window.addEventListener('resize', reposicionar)
+        return () => window.removeEventListener('resize', reposicionar)
+    }, [])
+
+    return (
+        <div
+            ref={popupRef}
+            style={pos.dx || pos.dy ? { transform: `translate(${pos.dx}px, ${pos.dy}px)` } : undefined}
+            className={[
+                'absolute z-20 w-64 bg-[#120063] text-white rounded-xl shadow-2xl p-4 space-y-3',
+                pos.lado === 'direita' ? 'left-full ml-3' : 'right-full mr-3',
+                pos.vertical === 'topo' ? 'top-0' : 'bottom-0',
+            ].join(' ')}
+        >
+            <ExternalLink size={14} className="text-gray-300 ml-auto" />
+            {reunioes.map((r) => (
+                <div key={r.id} className="space-y-1">
+                    <p className="font-bold text-sm leading-snug">{r.titulo}</p>
+                    <p className="text-xs text-gray-300">
+                        {capitalizar(format(dia, "EEEE, d 'de' MMMM", { locale: ptBR }))} · {r.horaInicio} -{' '}
+                        {r.horaFim}
+                    </p>
+                    {r.responsavel && (
+                        <p className="flex items-center gap-1.5 text-xs text-gray-300 pt-1">
+                            <User size={12} />
+                            {r.responsavel}
+                        </p>
+                    )}
+                </div>
+            ))}
         </div>
     )
 }
