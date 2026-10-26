@@ -48,38 +48,30 @@ export default function EscolhaTipoConta({ onEscolher }: EscolhaTipoContaProps) 
     }
 
     return (
-        <div className="min-h-screen bg-white text-black">
+        // Mesma estrutura visual da Triagem.tsx (topo, coluna central e rodapé)
+        <div className="min-h-screen flex flex-col bg-white text-gray-900 font-sans">
             {/* Topo - Nome da aplicação */}
-            <header className="text-center pt-[39px]">
-                <span className="font-['Roboto',sans-serif] font-semibold text-2xl leading-[27.5px]">
-                    PLAD
-                </span>
+            <header className="text-center pt-8 pb-4">
+                <span className="font-bold tracking-wider text-black text-3xl uppercase">PLAD</span>
             </header>
 
-            <form onSubmit={handleSubmit}>
-                <main className="px-4 pb-[172px] flex flex-col items-center">
-                    <h1
-                        id="titulo-perfil"
-                        className="mt-16 md:mt-[111px] text-center font-['Outfit',sans-serif] font-semibold text-[28px] md:text-[36px] leading-tight md:leading-[27.5px]"
-                    >
+            <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
+                <main className="w-full max-w-sm mx-auto flex-1 flex flex-col px-4">
+                    <h1 id="titulo-perfil" className="text-2xl font-extrabold text-black mb-6 leading-snug">
                         Com quais destes perfis você mais se identifica?
                     </h1>
 
                     {/* Radios nativos com o mesmo name: setas do teclado e leitor de tela funcionam sem código extra */}
-                    <div
-                        role="radiogroup"
-                        aria-labelledby="titulo-perfil"
-                        className="mt-12 md:mt-[75px] w-full max-w-[525px] flex flex-col gap-12"
-                    >
+                    <div role="radiogroup" aria-labelledby="titulo-perfil" className="space-y-2.5">
                         {OPCOES.map((opcao) => {
                             const ativo = selecionado === opcao.tipo
                             return (
                                 <label
                                     key={opcao.tipo}
-                                    className={`flex items-center min-h-[95px] w-full rounded-[20px] border-4 pl-3 pr-4 py-2 cursor-pointer transition-colors has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#4B64F9]/40 ${
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border cursor-pointer transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 ${
                                         ativo
-                                            ? 'bg-[#4B64F9] border-[#4B64F9] text-white'
-                                            : 'bg-white border-[#DAEAFF] text-black'
+                                            ? 'bg-indigo-50 border-indigo-500'
+                                            : 'bg-gray-100 border-transparent hover:bg-gray-200'
                                     }`}
                                 >
                                     <input
@@ -90,11 +82,11 @@ export default function EscolhaTipoConta({ onEscolher }: EscolhaTipoContaProps) 
                                         onChange={() => setSelecionado(opcao.tipo)}
                                         className="sr-only"
                                     />
-                                    {/* Slot de altura zero: no Figma o ícone (até 109px) transborda o card de 95px sem mudar a altura dele */}
-                                    <span className="w-[100px] h-0 shrink-0 flex items-center justify-center">
+                                    {/* Os recortes do Figma são reduzidos à metade para caber na coluna das perguntas */}
+                                    <span className="w-14 h-14 shrink-0 flex items-center justify-center">
                                         <span
                                             aria-hidden="true"
-                                            className={`${opcao.caixaIcone} ${ativo ? 'bg-white' : 'bg-[#4B64F9]'}`}
+                                            className={`${opcao.caixaIcone} shrink-0 scale-50 bg-indigo-500`}
                                             style={{
                                                 maskImage: `url(${perfisImg})`,
                                                 maskSize: opcao.mascaraSize,
@@ -104,12 +96,8 @@ export default function EscolhaTipoConta({ onEscolher }: EscolhaTipoContaProps) 
                                         />
                                     </span>
                                     <span className="flex flex-col">
-                                        <span className="font-['Outfit',sans-serif] font-semibold text-xl md:text-2xl leading-[27.5px]">
-                                            {opcao.titulo}
-                                        </span>
-                                        <span className="mt-0.5 font-['Roboto',sans-serif] text-base md:text-lg leading-[27.5px]">
-                                            {opcao.descricao}
-                                        </span>
+                                        <span className="text-sm font-semibold text-gray-800">{opcao.titulo}</span>
+                                        <span className="text-xs text-gray-600">{opcao.descricao}</span>
                                     </span>
                                 </label>
                             )
@@ -117,12 +105,12 @@ export default function EscolhaTipoConta({ onEscolher }: EscolhaTipoContaProps) 
                     </div>
                 </main>
 
-                {/* Barra fixa no rodapé com o botão de avançar */}
-                <footer className="fixed inset-x-0 bottom-0 h-[132px] bg-white shadow-[0_-5px_32.7px_rgba(0,0,0,0.21)] flex justify-center pt-[30px] px-4">
+                {/* Rodapé com o botão de avançar, igual ao da Triagem */}
+                <footer className="w-full max-w-xs mx-auto pb-6 pt-4 px-4">
                     <button
                         type="submit"
                         disabled={!selecionado}
-                        className="h-[75px] w-full max-w-[375px] rounded-[10px] bg-[#4B64F9] text-white font-['Roboto',sans-serif] font-medium text-2xl leading-[27.5px] transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="w-full py-3 px-6 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white font-medium rounded-lg transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         Próximo
                     </button>
