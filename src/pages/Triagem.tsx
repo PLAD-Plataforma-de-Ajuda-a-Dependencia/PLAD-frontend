@@ -125,8 +125,8 @@ export default function Triagem() {
                     {result === 'submitted' ? 'Triagem enviada!' : 'Respostas atualizadas!'}
                 </h1>
                 <p className="text-sm text-gray-600">Obrigado por responder. Suas respostas foram registradas.</p>
-                <Link to="/" className="mt-6 text-xs text-indigo-600 hover:underline self-start font-medium">
-                    Voltar ao início
+                <Link to="/Calendario" className="mt-6 text-xs text-indigo-600 hover:underline self-start font-medium">
+                    Prosseguir
                 </Link>
             </TriagemLayout>
         )
