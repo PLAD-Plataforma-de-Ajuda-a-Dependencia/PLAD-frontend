@@ -13,13 +13,19 @@ import linkedinIcon from '../assets/linkedin.png'
 
 export default function Home() {
     return (
-        <div className="w-full bg-[#f4f5fd] text-slate-900 font-sans min-h-screen">
+        <div className="w-full bg-plad-fundo text-slate-900 font-roboto min-h-screen">
+            {/* Navbar + Hero: fundo lilás com os brilhos em gradiente do Figma (roxo no topo esquerdo, azul no canto inferior direito) */}
+            <div
+                style={{
+                    backgroundImage:
+                        'radial-gradient(ellipse 30% 45% at 12% 0%, rgba(150,142,205,0.55), transparent), radial-gradient(ellipse 40% 55% at 100% 100%, rgba(112,132,255,0.85), transparent)',
+                }}
+            >
             {/* Navbar / Header */}
-            <header className="max-w-7xl mx-auto px-8 py-8 flex items-center justify-between">
-        <span className="font-extrabold text-2xl tracking-wider text-black uppercase">
-          PLAD
-        </span>
-                <nav className="flex items-center space-x-12 text-base text-gray-800 font-medium">
+            <header className="max-w-[1114px] mx-auto px-8 pt-14 pb-6 flex items-center justify-between">
+                <span className="font-outfit font-bold text-2xl text-black">PLAD</span>
+                {/* Os três links ficam agrupados e "entrar" separado à direita, como no Figma */}
+                <nav className="flex items-center gap-x-6 md:gap-x-[70px] text-base lg:text-[17px] text-gray-900 font-medium">
                     <a href="#sobre" className="hover:text-black transition">
                         sobre
                     </a>
@@ -31,7 +37,7 @@ export default function Home() {
                     </a>
                     <Link
                         to="/login"
-                        className="hover:text-black transition font-semibold"
+                        className="lg:ml-52 hover:text-black transition font-semibold"
                     >
                         entrar
                     </Link>
@@ -39,19 +45,19 @@ export default function Home() {
             </header>
 
             {/* Hero Section */}
-            <section className="max-w-7xl mx-auto px-8 py-16 lg:py-24 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                <div className="space-y-8">
-                    <h1 className="text-5xl lg:text-6xl font-black text-black leading-[1.15] tracking-tight">
+            <section className="max-w-[1114px] mx-auto px-8 py-16 lg:py-24 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div className="space-y-7">
+                    <h1 className="font-outfit text-6xl lg:text-[76px] font-bold text-black leading-[1.2]">
                         Acolhimento <br /> Digital Para <br /> Você
                     </h1>
-                    <p className="text-gray-600 text-base lg:text-lg leading-relaxed max-w-lg">
+                    <p className="text-gray-900 text-base leading-relaxed max-w-[440px]">
                         Nossa plataforma conecta você a psicólogos online, com atendimento
                         gratuito, acolhedor e livre de julgamentos.
                     </p>
                     <div className="pt-2">
                         <Link
                             to="/criar-conta"
-                            className="inline-block bg-[#5271ff] hover:bg-[#405de6] text-white font-bold text-sm uppercase tracking-wider py-4 px-10 rounded-2xl shadow-lg transition-colors"
+                            className="inline-block bg-gradient-to-r from-[#6f82ff] to-plad hover:from-[#5f73f0] hover:to-plad-hover text-white font-semibold text-base uppercase tracking-wide py-3.5 px-12 rounded-full shadow-md transition-colors"
                         >
                             TRIAGEM
                         </Link>
@@ -62,27 +68,28 @@ export default function Home() {
                     <img
                         src={inicioImg}
                         alt="Acolhimento Digital PLAD"
-                        className="w-full max-w-xl lg:max-w-2xl object-contain"
+                        className="w-full max-w-md lg:max-w-[460px] object-contain"
                     />
                 </div>
             </section>
+            </div>
 
             {/* Section: Sobre a PLAD */}
-            <section id="sobre" className="bg-[#8397ff] text-white py-20 px-8">
-                <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                    <div className="flex justify-center order-2 lg:order-1">
+            <section id="sobre" className="bg-gradient-to-b from-[#6d85ff] to-[#9993ff] text-white py-20 lg:py-24 px-8">
+                <div className="max-w-[1114px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+                    <div className="flex justify-center lg:justify-start order-2 lg:order-1">
                         <img
                             src={sobreImg}
                             alt="Sobre a PLAD"
-                            className="w-full max-w-xl lg:max-w-2xl object-contain"
+                            className="w-full max-w-xl lg:max-w-[530px] object-contain"
                         />
                     </div>
 
                     <div className="space-y-6 order-1 lg:order-2">
-                        <h2 className="text-4xl lg:text-5xl font-black text-black">
+                        <h2 className="font-outfit text-5xl lg:text-[68px] font-bold text-black leading-tight">
                             Sobre a PLAD
                         </h2>
-                        <div className="space-y-5 text-sm lg:text-base text-gray-900 leading-relaxed">
+                        <div className="space-y-5 text-base text-black leading-relaxed">
                             <p>
                                 Somos uma plataforma de acolhimento digital criada para oferecer
                                 apoio psicológico seguro, anônimo e gratuito a pessoas que
@@ -99,11 +106,11 @@ export default function Home() {
             </section>
 
             {/* Section: Nossos Serviços */}
-            <section id="servicos" className="py-24 px-8 max-w-7xl mx-auto text-center">
-                <h2 className="text-4xl lg:text-5xl font-black text-black mb-6">
+            <section id="servicos" className="pt-24 pb-28 px-8 max-w-[1114px] mx-auto text-center">
+                <h2 className="font-outfit text-5xl lg:text-[68px] font-bold text-black leading-tight mb-6">
                     Nossos Serviços
                 </h2>
-                <p className="text-gray-600 text-sm lg:text-base max-w-3xl mx-auto mb-20 leading-relaxed">
+                <p className="text-gray-900 text-base max-w-[1100px] mx-auto mb-16 leading-relaxed">
                     Nosso objetivo é tornar o cuidado psicológico mais acessível. Por isso,
                     reunimos em um único ambiente digital diferentes formas de acolhimento:
                     atendimento com psicólogos, relatos anônimos e conteúdos educativos
@@ -111,9 +118,9 @@ export default function Home() {
                 </p>
 
                 {/* Cards de Serviços */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-10 text-center">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-10 lg:gap-[70px] text-center">
                     {/* Card 1 */}
-                    <div className="bg-white rounded-3xl p-10 shadow-xl shadow-indigo-100 flex flex-col items-center border border-gray-100">
+                    <div className="bg-white rounded-2xl p-10 shadow-lg shadow-black/25 flex flex-col items-center">
                         <div className="w-20 h-20 mb-8 flex items-center justify-center">
                             <img
                                 src={anonimoIcon}
@@ -121,7 +128,7 @@ export default function Home() {
                                 className="max-h-full object-contain"
                             />
                         </div>
-                        <h3 className="font-bold text-black text-base mb-4">
+                        <h3 className="font-outfit font-bold text-black text-lg mb-4">
                             Espaços de Relatos Anônimos
                         </h3>
                         <p className="text-gray-500 text-sm leading-relaxed">
@@ -132,7 +139,7 @@ export default function Home() {
                     </div>
 
                     {/* Card 2 */}
-                    <div className="bg-white rounded-3xl p-10 shadow-xl shadow-indigo-100 flex flex-col items-center border border-gray-100">
+                    <div className="bg-white rounded-2xl p-10 shadow-lg shadow-black/25 flex flex-col items-center">
                         <div className="w-20 h-20 mb-8 flex items-center justify-center">
                             <img
                                 src={coracaoIcon}
@@ -140,7 +147,7 @@ export default function Home() {
                                 className="max-h-full object-contain"
                             />
                         </div>
-                        <h3 className="font-bold text-black text-base mb-4">
+                        <h3 className="font-outfit font-bold text-black text-lg mb-4">
                             Converse Com Psicólogos de Forma Anônima e Segura
                         </h3>
                         <p className="text-gray-500 text-sm leading-relaxed">
@@ -150,7 +157,7 @@ export default function Home() {
                     </div>
 
                     {/* Card 3 */}
-                    <div className="bg-white rounded-3xl p-10 shadow-xl shadow-indigo-100 flex flex-col items-center border border-gray-100">
+                    <div className="bg-white rounded-2xl p-10 shadow-lg shadow-black/25 flex flex-col items-center">
                         <div className="w-20 h-20 mb-8 flex items-center justify-center">
                             <img
                                 src={livrinhoIcon}
@@ -158,7 +165,7 @@ export default function Home() {
                                 className="max-h-full object-contain"
                             />
                         </div>
-                        <h3 className="font-bold text-black text-base mb-4">
+                        <h3 className="font-outfit font-bold text-black text-lg mb-4">
                             Informação que acolhe e orienta
                         </h3>
                         <p className="text-gray-500 text-sm leading-relaxed">
@@ -171,8 +178,8 @@ export default function Home() {
             </section>
 
             {/* Footer */}
-            <footer id="contato" className="bg-[#120063] text-white py-12 px-8">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-gray-300">
+            <footer id="contato" className="bg-plad-rodape text-white py-12 px-8">
+                <div className="max-w-[1114px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-gray-300">
                     <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
                         <span>Plad</span>
                         <span>|</span>
@@ -203,7 +210,7 @@ export default function Home() {
                         </a>
                     </div>
                 </div>
-                <div className="max-w-7xl mx-auto mt-8 text-center md:text-left text-xs text-gray-400">
+                <div className="max-w-[1114px] mx-auto mt-8 text-center md:text-left text-xs text-gray-400">
                     © Plataforma de Ajuda a Dependência
                 </div>
             </footer>

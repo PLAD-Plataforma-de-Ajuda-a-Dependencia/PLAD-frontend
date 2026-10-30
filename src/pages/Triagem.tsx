@@ -34,24 +34,28 @@ function buildRequest(questions: QuestionResponseDTO[], answers: Answers): Triag
 }
 
 // Topo e rodapé comuns a todos os estados da página
-function TriagemLayout({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
+function TriagemLayout({ children, footer, wide }: { children: ReactNode; footer?: ReactNode; wide?: boolean }) {
     return (
-        <div className="min-h-screen flex flex-col bg-white text-gray-900 font-sans">
+        <div className="min-h-screen flex flex-col bg-white text-gray-900 font-roboto">
             {/* Topo - Nome da aplicação */}
             <header className="text-center pt-8 pb-4">
-                <span className="font-bold tracking-wider text-black text-3xl uppercase">PLAD</span>
+                <span className="font-outfit font-semibold text-xl text-black">PLAD</span>
             </header>
 
-            <main className="w-full max-w-sm mx-auto flex-1 flex flex-col px-4">{children}</main>
+            <main className={`w-full ${wide ? 'max-w-3xl' : 'max-w-sm'} mx-auto flex-1 flex flex-col px-4`}>{children}</main>
 
             {/* Botões fixos no rodapé */}
-            {footer && <footer className="w-full max-w-xs mx-auto pb-6 pt-4 px-4">{footer}</footer>}
+            {footer && (
+                <footer className="w-full bg-white shadow-[0_-8px_16px_-6px_rgba(0,0,0,0.15)] pt-5 pb-6 px-4">
+                    <div className="w-full max-w-sm mx-auto">{footer}</div>
+                </footer>
+            )}
         </div>
     )
 }
 
 const primaryButtonClass =
-    'w-full py-3 px-6 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white font-medium rounded-lg transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed'
+    'w-full py-3.5 px-6 bg-plad hover:bg-plad-hover active:bg-plad-active text-white font-medium rounded-lg transition-colors text-base disabled:opacity-60 disabled:cursor-not-allowed'
 
 export default function Triagem() {
     const [questions, setQuestions] = useState<QuestionResponseDTO[] | null>(null)
@@ -121,11 +125,11 @@ export default function Triagem() {
     if (result) {
         return (
             <TriagemLayout>
-                <h1 className="text-2xl font-extrabold text-black mb-4 leading-snug">
+                <h1 className="font-outfit text-2xl font-semibold text-black mb-4 leading-snug">
                     {result === 'submitted' ? 'Triagem enviada!' : 'Respostas atualizadas!'}
                 </h1>
                 <p className="text-sm text-gray-600">Obrigado por responder. Suas respostas foram registradas.</p>
-                <Link to="/Calendario" className="mt-6 text-xs text-indigo-600 hover:underline self-start font-medium">
+                <Link to="/Calendario" className="mt-6 text-xs text-plad hover:underline self-start font-medium">
                     Prosseguir
                 </Link>
             </TriagemLayout>
@@ -148,11 +152,11 @@ export default function Triagem() {
                     </>
                 }
             >
-                <h1 className="text-2xl font-extrabold text-black mb-4 leading-snug">Você já enviou sua triagem.</h1>
+                <h1 className="font-outfit text-2xl font-semibold text-black mb-4 leading-snug">Você já enviou sua triagem.</h1>
                 <p className="text-sm text-gray-600">
                     Se quiser, substitua as respostas anteriores pelas que você acabou de preencher.
                 </p>
-                <Link to="/" className="mt-6 text-xs text-indigo-600 hover:underline self-start font-medium">
+                <Link to="/" className="mt-6 text-xs text-plad hover:underline self-start font-medium">
                     Voltar ao início
                 </Link>
             </TriagemLayout>
@@ -213,6 +217,7 @@ export default function Triagem() {
 
     return (
         <TriagemLayout
+            wide
             footer={
                 <>
                     {error && (
@@ -227,24 +232,28 @@ export default function Triagem() {
             }
         >
             {/* Conteúdo da pergunta atual */}
-            <div className="flex items-center justify-between mb-6">
+            <span className="text-xs text-black mt-4 mb-3">
+                Pergunta {String(currentIndex + 1).padStart(2, '0')} de {String(total).padStart(2, '0')}
+            </span>
+
+            {/* "Anterior" fica à esquerda da pergunta no desktop e acima dela no mobile */}
+            <div className="flex flex-col items-start gap-3 mb-8 sm:block sm:relative">
                 <button
                     type="button"
                     onClick={goBack}
                     disabled={currentIndex === 0 || sending}
-                    className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-0 disabled:pointer-events-none transition"
+                    className="flex items-center gap-1.5 text-sm text-black hover:text-gray-600 disabled:opacity-0 disabled:pointer-events-none transition sm:absolute sm:left-0 xl:-left-40 sm:top-1/2 sm:-translate-y-1/2"
                 >
                     <span aria-hidden>←</span> Anterior
                 </button>
-                <span className="text-xs text-gray-500">
-                    Pergunta {String(currentIndex + 1).padStart(2, '0')} de {String(total).padStart(2, '0')}
-                </span>
+                <h1 className="font-outfit text-2xl sm:text-3xl font-semibold text-black text-center leading-snug w-full sm:px-24">
+                    {question.question_text}
+                </h1>
             </div>
 
-            <h1 className="text-2xl font-extrabold text-black mb-6 leading-snug">{question.question_text}</h1>
-
+            <div className="w-full max-w-sm mx-auto flex flex-col">
             {question.question_type !== 'free_text' && (
-                <div className="space-y-2.5">
+                <div className="space-y-3">
                     {question.options.map((option) => {
                         const selected = currentValues.includes(option.code)
                         return (
@@ -253,17 +262,15 @@ export default function Triagem() {
                                 type="button"
                                 aria-pressed={selected}
                                 onClick={() => selectOption(option.code)}
-                                className={`w-full flex items-center gap-3 text-left px-4 py-3 rounded-full border transition ${
-                                    selected
-                                        ? 'bg-indigo-50 border-indigo-500'
-                                        : 'bg-gray-100 border-transparent hover:bg-gray-200'
+                                className={`w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-full transition focus-visible:outline-2 focus-visible:outline-plad ${
+                                    selected ? 'bg-[#ebebeb]' : 'bg-[#ebebeb] hover:bg-[#e0e0e0]'
                                 }`}
                             >
                                 {/* Quadrado na múltipla escolha, círculo na escolha única */}
                                 <span
                                     className={`flex items-center justify-center w-4 h-4 border shrink-0 ${
                                         isMulti ? 'rounded-sm' : 'rounded-full'
-                                    } ${selected ? 'bg-indigo-500 border-indigo-500' : 'bg-white border-gray-300'}`}
+                                    } ${selected ? 'bg-plad border-plad' : 'bg-white border-gray-400'}`}
                                 >
                                     {selected && (
                                         <svg viewBox="0 0 16 16" className="w-2.5 h-2.5 fill-white">
@@ -271,7 +278,7 @@ export default function Triagem() {
                                         </svg>
                                     )}
                                 </span>
-                                <span className="text-sm text-gray-800">{option.label}</span>
+                                <span className="text-sm text-gray-700">{option.label}</span>
                             </button>
                         )
                     })}
@@ -288,7 +295,7 @@ export default function Triagem() {
                         placeholder="Campo opcional — escreva à vontade"
                         rows={5}
                         maxLength={FREE_TEXT_MAX_LENGTH}
-                        className="w-full px-3.5 py-2.5 border border-indigo-300 rounded-md text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition bg-white resize-none"
+                        className="w-full px-4 py-3 border border-plad/60 rounded-sm text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-plad transition bg-white resize-none"
                     />
                     <p className="text-xs text-gray-500 mt-3">Esta pergunta é opcional.</p>
                 </>
@@ -298,10 +305,11 @@ export default function Triagem() {
                 type="button"
                 onClick={skip}
                 disabled={sending}
-                className="mt-4 text-xs text-indigo-600 hover:underline self-start font-medium"
+                className="mt-4 text-xs text-plad hover:underline self-start font-medium"
             >
                 Pular esta pergunta
             </button>
+            </div>
         </TriagemLayout>
     )
 }

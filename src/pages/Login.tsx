@@ -50,25 +50,23 @@ export default function Login() {
     }
 
     return (
-        <div className="min-h-screen flex flex-col justify-between bg-white px-4 py-8 text-gray-900 font-sans">
+        <div className="min-h-screen flex flex-col bg-white text-gray-900 font-roboto">
             {/* Topo - Nome da aplicação */}
-            <header className="text-center pt-2">
-        <span className="font-bold tracking-wider text-black text-3xl uppercase">
-          PLAD
-        </span>
+            <header className="text-center pt-8 pb-4">
+                <span className="font-outfit font-semibold text-xl text-black">PLAD</span>
             </header>
 
             {/* Form de Entrar */}
-            <main className="w-full max-w-sm mx-auto flex-1 flex flex-col justify-center items-center">
-                <h1 className="text-3xl font-extrabold text-black text-center mb-2 tracking-tight">
+            <main className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center items-center px-4 pb-8">
+                <h1 className="font-outfit text-3xl sm:text-4xl font-semibold text-black text-center mb-3">
                     Entrar na sua conta
                 </h1>
-                <p className="text-gray-600 text-center text-sm mb-8">
+                <p className="text-black text-center text-sm mb-10">
                     Insira seus dados de acesso para entrar no PLAD.
                 </p>
 
                 {registeredEmail && (
-                    <p className="w-full mb-4 px-3.5 py-2.5 rounded-md bg-indigo-50 text-indigo-700 text-sm text-center">
+                    <p className="w-full mb-4 px-3.5 py-2.5 rounded-md bg-plad-fundo text-plad text-sm text-center">
                         Conta criada! Entre com seu e-mail e senha.
                     </p>
                 )}
@@ -82,7 +80,7 @@ export default function Login() {
                             required
                             value={formData.email}
                             onChange={handleChange}
-                            className="w-full px-3.5 py-2.5 border border-indigo-300 rounded-md text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition bg-white"
+                            className="w-full px-4 py-3.5 border border-plad/60 rounded-sm text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-plad transition bg-white"
                         />
                     </div>
 
@@ -94,13 +92,13 @@ export default function Login() {
                             required
                             value={formData.password}
                             onChange={handleChange}
-                            className="w-full px-3.5 py-2.5 border border-indigo-300 rounded-md text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition bg-white"
+                            className="w-full px-4 py-3.5 border border-plad/60 rounded-sm text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-plad transition bg-white"
                         />
                     </div>
 
                     {/* Link para Esqueceu a Senha */}
                     <div className="pt-2 text-right">
-                        <a href="#esqueceu-senha" className="text-xs text-indigo-600 hover:underline font-medium">
+                        <a href="#esqueceu-senha" className="text-xs text-plad hover:underline font-medium">
                             Esqueceu a senha?
                         </a>
                     </div>
@@ -108,20 +106,22 @@ export default function Login() {
             </main>
 
             {/* Botão de Entrar centralizado no rodapé (ligado ao form pelo atributo `form`) */}
-            <footer className="w-full max-w-xs mx-auto pb-4">
-                {error && (
-                    <p role="alert" className="mb-3 text-sm text-red-600 text-center">
-                        {error}
-                    </p>
-                )}
-                <button
-                    type="submit"
-                    form="login-form"
-                    disabled={loading}
-                    className="w-full py-3 px-6 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white font-medium rounded-lg transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                    {loading ? 'Entrando…' : 'Entrar'}
-                </button>
+            <footer className="w-full bg-white shadow-[0_-8px_16px_-6px_rgba(0,0,0,0.15)] pt-5 pb-6 px-4">
+                <div className="w-full max-w-sm mx-auto">
+                    {error && (
+                        <p role="alert" className="mb-3 text-sm text-red-600 text-center">
+                            {error}
+                        </p>
+                    )}
+                    <button
+                        type="submit"
+                        form="login-form"
+                        disabled={loading}
+                        className="w-full py-3.5 px-6 bg-plad hover:bg-plad-hover active:bg-plad-active text-white font-medium rounded-lg transition-colors text-base disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        {loading ? 'Entrando…' : 'Entrar'}
+                    </button>
+                </div>
             </footer>
         </div>
     )

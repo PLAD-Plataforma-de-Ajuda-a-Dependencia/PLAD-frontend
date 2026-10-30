@@ -60,20 +60,18 @@ export default function PsychologistRegister({ etapa1 }: PsychologistRegisterPro
     }
 
     return (
-        <div className="min-h-screen flex flex-col justify-between bg-white px-4 py-8 text-gray-900 font-sans">
+        <div className="min-h-screen flex flex-col bg-white text-gray-900 font-roboto">
             {/* Topo - Nome da aplicação */}
-            <header className="text-center pt-2">
-        <span className="font-bold tracking-wider text-black text-3xl uppercase">
-          PLAD
-        </span>
+            <header className="text-center pt-8 pb-4">
+                <span className="font-outfit font-semibold text-xl text-black">PLAD</span>
             </header>
 
             {/* Form de Cadastro do Psicólogo */}
-            <main className="w-full max-w-sm mx-auto flex-1 flex flex-col justify-center items-center">
-                <h1 className="text-3xl font-extrabold text-black text-center mb-2 tracking-tight">
+            <main className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center items-center px-4 pb-8">
+                <h1 className="font-outfit text-3xl sm:text-4xl font-semibold text-black text-center mb-3">
                     Dados profissionais
                 </h1>
-                <p className="text-gray-600 text-center text-sm mb-8">
+                <p className="text-black text-center text-sm mb-10">
                     Complete seu cadastro como psicólogo para começar a atender no PLAD.
                 </p>
 
@@ -85,7 +83,7 @@ export default function PsychologistRegister({ etapa1 }: PsychologistRegisterPro
                             placeholder="Formação acadêmica"
                             value={formData.graduate}
                             onChange={handleChange}
-                            className="w-full px-3.5 py-2.5 border border-indigo-300 rounded-md text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                            className="w-full px-4 py-3.5 border border-plad/60 rounded-sm text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-plad transition bg-white"
                         />
                     </div>
 
@@ -94,7 +92,7 @@ export default function PsychologistRegister({ etapa1 }: PsychologistRegisterPro
                             name="credentialType"
                             value={formData.credentialType}
                             onChange={handleChange}
-                            className="w-full px-3.5 py-2.5 border border-indigo-300 rounded-md text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition bg-white"
+                            className="w-full px-4 py-3.5 border border-plad/60 rounded-sm text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-plad transition bg-white"
                         >
                             <option value="CRP">CRP</option>
                             <option value="CRM">CRM</option>
@@ -109,13 +107,13 @@ export default function PsychologistRegister({ etapa1 }: PsychologistRegisterPro
                             required
                             value={formData.crmCrpNumber}
                             onChange={handleChange}
-                            className="w-full px-3.5 py-2.5 border border-indigo-300 rounded-md text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                            className="w-full px-4 py-3.5 border border-plad/60 rounded-sm text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-plad transition bg-white"
                         />
                     </div>
 
                     {/* Avisos */}
                     <div className="pt-6 text-center text-xs space-y-1">
-                        <p className="font-semibold text-black">
+                        <p className="font-outfit font-medium text-black">
                             Seu registro será validado pela nossa equipe.
                         </p>
                         <p className="text-gray-500">
@@ -126,20 +124,22 @@ export default function PsychologistRegister({ etapa1 }: PsychologistRegisterPro
             </main>
 
             {/* Botão centralizado no rodapé (ligado ao form pelo atributo `form`) */}
-            <footer className="w-full max-w-xs mx-auto pb-4">
-                {error && (
-                    <p role="alert" className="mb-3 text-sm text-red-600 text-center">
-                        {error}
-                    </p>
-                )}
-                <button
-                    type="submit"
-                    form="psicologo-form"
-                    disabled={loading}
-                    className="w-full py-3 px-6 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-lg transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                    {loading ? 'Enviando…' : 'Concluir cadastro'}
-                </button>
+            <footer className="w-full bg-white shadow-[0_-8px_16px_-6px_rgba(0,0,0,0.15)] pt-5 pb-6 px-4">
+                <div className="w-full max-w-sm mx-auto">
+                    {error && (
+                        <p role="alert" className="mb-3 text-sm text-red-600 text-center">
+                            {error}
+                        </p>
+                    )}
+                    <button
+                        type="submit"
+                        form="psicologo-form"
+                        disabled={loading}
+                        className="w-full py-3.5 px-6 bg-plad hover:bg-plad-hover text-white font-medium rounded-lg transition-colors text-base disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        {loading ? 'Enviando…' : 'Concluir cadastro'}
+                    </button>
+                </div>
             </footer>
         </div>
     )

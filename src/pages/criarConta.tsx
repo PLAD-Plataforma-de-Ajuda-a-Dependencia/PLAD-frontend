@@ -97,23 +97,21 @@ export default function CriarConta() {
     }
 
     const inputClass =
-        'w-full px-3.5 py-2.5 border border-indigo-300 rounded-md text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition bg-white'
+        'w-full px-4 py-3.5 border border-plad/60 rounded-sm text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-plad transition bg-white'
 
     return (
-        <div className="min-h-screen flex flex-col justify-between bg-white px-4 py-8 text-gray-900 font-sans">
+        <div className="min-h-screen flex flex-col bg-white text-gray-900 font-roboto">
             {/* Topo - Nome da aplicação */}
-            <header className="text-center pt-2">
-        <span className="font-bold tracking-wider text-black text-3xl uppercase">
-          PLAD
-        </span>
+            <header className="text-center pt-8 pb-4">
+                <span className="font-outfit font-semibold text-xl text-black">PLAD</span>
             </header>
 
             {/* Form de Cadastro */}
-            <main className="w-full max-w-sm mx-auto flex-1 flex flex-col justify-center items-center">
-                <h1 className="text-3xl font-extrabold text-black text-center mb-2 tracking-tight">
+            <main className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center items-center px-4 pb-8">
+                <h1 className="font-outfit text-3xl sm:text-4xl font-semibold text-black text-center mb-3">
                     Criar a sua conta
                 </h1>
-                <p className="text-gray-600 text-center text-sm mb-8">
+                <p className="text-black text-center text-sm mb-10">
                     Crie uma conta para salvar suas configurações e comece a usar o PLAD.
                 </p>
 
@@ -185,7 +183,7 @@ export default function CriarConta() {
 
                     {/* Avisos */}
                     <div className="pt-6 text-center text-xs space-y-1">
-                        <p className="font-semibold text-black">
+                        <p className="font-outfit font-medium text-black">
                             Deve ter pelo menos 18 anos.
                         </p>
                         <p className="text-gray-500">
@@ -196,28 +194,30 @@ export default function CriarConta() {
             </main>
 
             {/* Botão centralizado no rodapé (ligado ao form pelo atributo `form`) */}
-            <footer className="w-full max-w-xs mx-auto pb-4">
-                {error && (
-                    <p role="alert" className="mb-3 text-sm text-red-600 text-center">
-                        {error}
-                    </p>
-                )}
-                <button
-                    type="submit"
-                    form="criar-conta-form"
-                    disabled={loading}
-                    className="w-full py-3 px-6 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-lg transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                    {loading ? 'Criando conta…' : tipo === 'dependente' ? 'Criar conta' : 'Próximo'}
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setSearchParams({})}
-                    disabled={loading}
-                    className="w-full mt-3 text-sm text-indigo-600 hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                    Voltar para a escolha de perfil
-                </button>
+            <footer className="w-full bg-white shadow-[0_-8px_16px_-6px_rgba(0,0,0,0.15)] pt-5 pb-6 px-4">
+                <div className="w-full max-w-sm mx-auto">
+                    {error && (
+                        <p role="alert" className="mb-3 text-sm text-red-600 text-center">
+                            {error}
+                        </p>
+                    )}
+                    <button
+                        type="submit"
+                        form="criar-conta-form"
+                        disabled={loading}
+                        className="w-full py-3.5 px-6 bg-plad hover:bg-plad-hover text-white font-medium rounded-lg transition-colors text-base disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        {loading ? 'Criando conta…' : tipo === 'dependente' ? 'Criar conta' : 'Próximo'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setSearchParams({})}
+                        disabled={loading}
+                        className="w-full mt-3 text-sm text-plad hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        Voltar para a escolha de perfil
+                    </button>
+                </div>
             </footer>
         </div>
     )

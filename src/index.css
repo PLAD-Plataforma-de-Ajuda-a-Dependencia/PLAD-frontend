@@ -1,1 +1,12 @@
 @import "tailwindcss";
+
+/* Fontes e cores do Figma: Outfit nos títulos, Roboto nos textos (carregadas em index.html) */
+@theme {
+    --font-outfit: "Outfit", sans-serif;
+    --font-roboto: "Roboto", sans-serif;
+    --color-plad: #4b64f9;
+    --color-plad-hover: #3a52e0;
+    --color-plad-active: #2f45c8;
+    --color-plad-fundo: #ebeaff;
+    --color-plad-rodape: #19007b;
+}
