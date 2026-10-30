@@ -17,7 +17,8 @@ import {
 import { ptBR } from 'date-fns/locale'
 import {
     LayoutDashboard,
-    // CalendarDays, Video, Users — voltam quando os itens do menu forem reativados
+    Video,
+    // CalendarDays, Users — voltam quando os itens do menu forem reativados
     ChevronLeft,
     ChevronRight,
     MoreHorizontal,
@@ -162,20 +163,20 @@ export default function Calendario({
     }
 
     return (
-        <div className="w-full min-h-screen bg-[#f4f5fd] flex flex-col font-sans text-slate-900">
+        <div className="w-full min-h-screen bg-[#f4f5fd] flex flex-col font-roboto text-slate-900">
             <div className="flex flex-1">
                 {/* Sidebar */}
                 <aside className="w-24 lg:w-28 bg-white flex flex-col items-center py-8 shadow-sm shrink-0">
-                <span className="font-extrabold text-sm tracking-wider text-black uppercase mb-10">
+                <span className="font-outfit font-bold text-lg text-black mb-10">
                     PLAD
                 </span>
 
                     <nav className="flex flex-col items-center gap-8 flex-1">
                         {/* Por enquanto o Painel é a própria página de calendário */}
                         <SidebarLink to="/calendario" icon={<LayoutDashboard size={20} />} label="Painel" active />
+                        <SidebarLink to="/reuniao" icon={<Video size={20} />} label="Reunião" />
                         {/* Ocultados até as páginas existirem:
                         <SidebarLink to="/calendario" icon={<CalendarDays size={20} />} label="Calendário" />
-                        <SidebarLink to="/reuniao" icon={<Video size={20} />} label="Reunião" />
                         <SidebarLink to="/comunidade" icon={<Users size={20} />} label="Comunidade" />
                         */}
                     </nav>
@@ -199,7 +200,7 @@ export default function Calendario({
                             subtitulo="Livre de álcool há:"
                             icone={<Clock size={16} />}
                         >
-                        <span className="text-3xl font-black text-black">
+                        <span className="font-outfit text-3xl font-bold text-black">
                             {contadores.diasSobriedade} {contadores.diasSobriedade === 1 ? 'dia' : 'dias'}
                         </span>
                         </CardContador>
@@ -209,7 +210,7 @@ export default function Calendario({
                             subtitulo="Economizados:"
                             icone={<Coins size={16} />}
                         >
-                        <span className="text-3xl font-black text-black leading-none">
+                        <span className="font-outfit text-3xl font-bold text-black leading-none">
                             {contadores.valorEconomizado.toLocaleString('pt-BR', {
                                 style: 'currency',
                                 currency: 'BRL',
@@ -231,7 +232,7 @@ export default function Calendario({
                             }
                             icone={<Award size={16} />}
                         >
-                        <span className="text-xl font-black text-black leading-tight">
+                        <span className="font-outfit text-xl font-bold text-black leading-tight">
                             {contadores.proximoMarco.semanas}{' '}
                             {contadores.proximoMarco.semanas === 1 ? 'semana' : 'semanas'}
                         </span>
@@ -242,7 +243,7 @@ export default function Calendario({
                         </CardContador>
                     </section>
 
-                    <h1 className="text-2xl font-black text-black">Calendário de reuniões</h1>
+                    <h1 className="font-outfit text-2xl font-bold text-black">Calendário de reuniões</h1>
                     <p className="text-gray-500 text-sm mt-1 mb-8">
                         Visualize as reuniões marcadas e participe
                     </p>
@@ -250,7 +251,7 @@ export default function Calendario({
                     <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100 border border-gray-100 p-8">
                         {/* Cabeçalho do mês */}
                         <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-lg font-bold text-black">
+                            <h2 className="font-outfit text-lg font-bold text-black">
                                 {capitalizar(format(mesAtual, "MMMM 'de' yyyy", { locale: ptBR }))}
                             </h2>
                             <div className="flex items-center gap-2">
@@ -458,7 +459,7 @@ function PopupReuniao({ dia, reunioes }: { dia: Date; reunioes: Reuniao[] }) {
             <ExternalLink size={14} className="text-gray-300 ml-auto" />
             {reunioes.map((r) => (
                 <div key={r.id} className="space-y-1">
-                    <p className="font-bold text-sm leading-snug">{r.titulo}</p>
+                    <p className="font-outfit font-semibold text-sm leading-snug">{r.titulo}</p>
                     <p className="text-xs text-gray-300">
                         {capitalizar(format(dia, "EEEE, d 'de' MMMM", { locale: ptBR }))} · {r.horaInicio} -{' '}
                         {r.horaFim}
@@ -489,7 +490,7 @@ function CardContador({
     return (
         <div className="bg-white rounded-2xl border border-gray-200 p-8 flex flex-col items-center shadow-sm">
             <div className="w-full">
-                <span className="inline-block bg-[#5271ff] text-white text-sm font-medium px-3 py-0.5 rounded-md">
+                <span className="inline-block bg-[#5271ff] text-white font-outfit text-sm font-medium px-3 py-0.5 rounded-md">
                     {titulo}
                 </span>
                 <p className="text-xs text-gray-700 mt-2 ml-1 min-h-[2rem] leading-snug">{subtitulo}</p>
