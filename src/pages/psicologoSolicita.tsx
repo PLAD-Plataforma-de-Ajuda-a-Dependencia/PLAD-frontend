@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { register } from '../api/auth'
 import { ApiError, errosPorCampo, getErrorMessage } from '../api/client'
 import type { CadastroEtapa1, CrmCrpType } from '../api/auth'
-import ErroCampo from '../components/ErroCampo'
+import Botao from '../components/Botao'
+import Campo from '../components/Campo'
+import LayoutPagina from '../components/LayoutPagina'
 
 interface PsychologistFormData {
     graduate: string
@@ -34,19 +36,18 @@ export default function PsychologistRegister({ etapa1, onVoltar }: PsychologistR
     const [error, setError] = useState<string | null>(null)
     const [errosCampo, setErrosCampo] = useState<Record<string, string>>({})
 
-    const handleChange = (
-        e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
-    ) => {
+    const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target
         setFormData((prev) => ({ ...prev, [name]: value }))
     }
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
+        if (loading) return
         // O backend só recusa número nulo, então string em branco é barrada aqui
         const crmCrpNumber = formData.crmCrpNumber.trim()
         if (!crmCrpNumber) {
-            setError('Informe o número do registro.')
+            setErrosCampo({ crm_crp_number: 'Informe o número do registro.' })
             return
         }
 
@@ -70,7 +71,7 @@ export default function PsychologistRegister({ etapa1, onVoltar }: PsychologistR
                 onVoltar(erros)
             } else {
                 setErrosCampo(erros)
-                setError(getErrorMessage(err, 'Não foi possível concluir o cadastro.'))
+                setError(Object.keys(erros).length > 0 ? null : getErrorMessage(err, 'Não foi possível concluir o cadastro.'))
             }
         } finally {
             setLoading(false)
@@ -78,92 +79,74 @@ export default function PsychologistRegister({ etapa1, onVoltar }: PsychologistR
     }
 
     return (
-        <div className="min-h-screen flex flex-col bg-white text-gray-900 font-roboto">
-            {/* Topo - Nome da aplicação */}
-            <header className="text-center pt-8 pb-4">
-                <span className="font-outfit font-semibold text-xl text-black">PLAD</span>
-            </header>
-
-            {/* Form de Cadastro do Psicólogo */}
-            <main className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center items-center px-4 pb-8">
-                <h1 className="font-outfit text-3xl sm:text-4xl font-semibold text-black text-center mb-3">
-                    Dados profissionais
-                </h1>
-                <p className="text-black text-center text-sm mb-10">
-                    Complete seu cadastro como psicólogo para começar a atender no PLAD.
-                </p>
-
-                <form id="psicologo-form" onSubmit={handleSubmit} className="w-full space-y-3.5">
-                    <div>
-                        <input
-                            type="text"
-                            name="graduate"
-                            placeholder="Formação acadêmica"
-                            value={formData.graduate}
-                            onChange={handleChange}
-                            aria-invalid={Boolean(errosCampo.graduate)}
-                            className="w-full px-4 py-3.5 border border-plad/60 rounded-sm text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-plad transition bg-white"
-                        />
-                        <ErroCampo mensagem={errosCampo.graduate} />
-                    </div>
-
-                    <div>
-                        <select
-                            name="credentialType"
-                            value={formData.credentialType}
-                            onChange={handleChange}
-                            className="w-full px-4 py-3.5 border border-plad/60 rounded-sm text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-plad transition bg-white"
-                        >
-                            <option value="CRP">CRP</option>
-                            <option value="CRM">CRM</option>
-                        </select>
-                        <ErroCampo mensagem={errosCampo.credential_type} />
-                    </div>
-
-                    <div>
-                        <input
-                            type="text"
-                            name="crmCrpNumber"
-                            placeholder="Número do registro (ex: 06/123456)"
-                            required
-                            value={formData.crmCrpNumber}
-                            onChange={handleChange}
-                            aria-invalid={Boolean(errosCampo.crm_crp_number)}
-                            className="w-full px-4 py-3.5 border border-plad/60 rounded-sm text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-plad transition bg-white"
-                        />
-                        <ErroCampo mensagem={errosCampo.crm_crp_number} />
-                    </div>
-
-                    {/* Avisos */}
-                    <div className="pt-6 text-center text-xs space-y-1">
-                        <p className="font-outfit font-medium text-black">
-                            Seu registro será validado pela nossa equipe.
-                        </p>
-                        <p className="text-gray-500">
-                            Certifique-se de que o número informado está correto.
-                        </p>
-                    </div>
-                </form>
-            </main>
-
-            {/* Botão centralizado no rodapé (ligado ao form pelo atributo `form`) */}
-            <footer className="w-full bg-white shadow-[0_-8px_16px_-6px_rgba(0,0,0,0.15)] pt-5 pb-6 px-4">
-                <div className="w-full max-w-sm mx-auto">
+        <LayoutPagina
+            titulo="Dados profissionais"
+            centralizar
+            acoes={
+                <>
                     {error && (
-                        <p role="alert" className="mb-3 text-sm text-red-600 text-center">
+                        <p role="alert" className="text-center text-sm text-erro">
                             {error}
                         </p>
                     )}
-                    <button
-                        type="submit"
-                        form="psicologo-form"
-                        disabled={loading}
-                        className="w-full py-3.5 px-6 bg-plad hover:bg-plad-hover text-white font-medium rounded-lg transition-colors text-base disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
+                    <Botao type="submit" form="psicologo-form" bloco carregando={loading}>
                         {loading ? 'Enviando…' : 'Concluir cadastro'}
-                    </button>
+                    </Botao>
+                </>
+            }
+        >
+            <h1 className="mb-3 text-center font-outfit text-3xl font-semibold text-black sm:text-4xl">Dados profissionais</h1>
+            <p className="mb-10 text-center text-base text-black">
+                Complete seu cadastro como psicólogo para começar a atender no PLAD.
+            </p>
+
+            {/* Só placeholders dentro dos campos, como no Figma; o rótulo existe para o leitor de tela (rotuloOculto) */}
+            <form id="psicologo-form" onSubmit={handleSubmit} className="w-full space-y-5">
+                <Campo rotulo="Formação acadêmica (opcional)" rotuloOculto erro={errosCampo.graduate}>
+                    {(controle) => (
+                        <input
+                            {...controle}
+                            type="text"
+                            name="graduate"
+                            placeholder="Formação acadêmica (opcional)"
+                            value={formData.graduate}
+                            onChange={handleChange}
+                        />
+                    )}
+                </Campo>
+
+                <Campo rotulo="Tipo de registro" rotuloOculto erro={errosCampo.credential_type}>
+                    {(controle) => (
+                        <select {...controle} name="credentialType" value={formData.credentialType} onChange={handleChange}>
+                            <option value="CRP">CRP</option>
+                            <option value="CRM">CRM</option>
+                        </select>
+                    )}
+                </Campo>
+
+                <Campo rotulo="Número do registro" rotuloOculto erro={errosCampo.crm_crp_number}>
+                    {(controle) => (
+                        <input
+                            {...controle}
+                            type="text"
+                            name="crmCrpNumber"
+                            placeholder="Número do registro (ex.: 06/123456)"
+                            required
+                            value={formData.crmCrpNumber}
+                            onChange={handleChange}
+                        />
+                    )}
+                </Campo>
+
+                {/* Avisos, e logo abaixo o caminho de volta para a etapa 1 (o mesmo que o Voltar do navegador) */}
+                <div className="space-y-1 pt-4 text-center text-sm">
+                    <p className="font-outfit font-medium text-black">Seu registro será validado pela nossa equipe.</p>
+                    <p className="text-texto-suave">Certifique-se de que o número informado está correto.</p>
                 </div>
-            </footer>
-        </div>
+                <Botao variante="texto" bloco onClick={() => navigate(-1)} disabled={loading}>
+                    Voltar para a etapa anterior
+                </Botao>
+            </form>
+        </LayoutPagina>
     )
 }

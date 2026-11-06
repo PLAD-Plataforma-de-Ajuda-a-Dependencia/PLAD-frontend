@@ -1,12 +1,86 @@
 @import "tailwindcss";
 
-/* Fontes e cores do Figma: Outfit nos títulos, Roboto nos textos (carregadas em index.html) */
+/*
+ * Tokens do PLAD. Telas e componentes usam estes nomes (bg-plad, text-erro, rounded-cartao, shadow-rodape...) e não
+ * valores soltos. Fontes e cores de marca vêm do Figma (arquivo tabegYR6vvZ0HCo5P3dkPA); as cores de estado e o texto
+ * suave foram escolhidos para passar no contraste AA (4,5:1 em texto normal).
+ */
 @theme {
+    /* Fontes: Outfit nos títulos, Roboto nos textos (carregadas em index.html) */
     --font-outfit: "Outfit", sans-serif;
     --font-roboto: "Roboto", sans-serif;
+
+    /* Marca */
     --color-plad: #4b64f9;
     --color-plad-hover: #3a52e0;
     --color-plad-active: #2f45c8;
+    --color-plad-claro: #6d85ff;
+    --color-plad-lilas: #9993ff;
     --color-plad-fundo: #ebeaff;
     --color-plad-rodape: #19007b;
+    --color-avatar: #dca8ff;
+
+    /* Superfícies e texto */
+    --color-opcao: #ebebeb;
+    --color-borda-cartao: #ebebeb;
+    --color-opcao-hover: #e0e0e0;
+    --color-borda-suave: #dce6ff;
+    --color-texto-suave: #4b5563;
+
+    /* Estados: erro de verdade, aviso (sem conexão, em breve) e sucesso */
+    --color-erro: #b91c1c;
+    --color-erro-hover: #991b1b;
+    --color-erro-fundo: #fef2f2;
+    --color-aviso: #78350f;
+    --color-aviso-fundo: #fffbeb;
+    --color-aviso-borda: #fcd34d;
+    --color-sucesso: #166534;
+    --color-sucesso-fundo: #f0fdf4;
+
+    /* Raios */
+    --radius-campo: 0.5rem;
+    --radius-botao: 0.5rem;
+    --radius-cartao: 1.125rem;
+    --radius-painel: 1.5rem;
+
+    /* Sombras */
+    --shadow-rodape: 0 -8px 16px -6px rgb(0 0 0 / 0.15);
+    --shadow-cartao: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-painel: 0 20px 25px -5px rgb(199 210 254 / 0.5), 0 8px 10px -6px rgb(199 210 254 / 0.5);
+}
+
+@layer base {
+    /* O rodapé de ações fica fixo na parte de baixo: o campo que recebe o foco não pode ficar escondido atrás dele */
+    html {
+        scroll-padding-bottom: 10rem;
+    }
+
+    body {
+        font-family: var(--font-roboto);
+    }
+
+    /* O Edge desenha o próprio "olho" de revelar a senha (e um X de limpar): o campo já tem o seu, e dois botões iguais
+       confundem. Os dois nativos saem. */
+    input::-ms-reveal,
+    input::-ms-clear {
+        display: none;
+    }
+
+    /* Foco sempre visível, por teclado, em tudo que é interativo (:where mantém a especificidade baixa) */
+    :where(a, button, summary, input, select, textarea, [tabindex]):focus-visible {
+        outline: 2px solid var(--color-plad);
+        outline-offset: 2px;
+    }
+}
+
+/* Quem pede menos movimento não recebe animações nem transições */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }

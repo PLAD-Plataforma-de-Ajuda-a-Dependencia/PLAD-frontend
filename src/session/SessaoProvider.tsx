@@ -1,26 +1,37 @@
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { login, logout } from '../api/auth'
-import { registrarAoExpirarSessao, renovarSessao } from '../api/client'
+import { ApiError, registrarAoExpirarSessao, renovarSessao } from '../api/client'
 import { getMe } from '../api/me'
 import type { MeResponseDTO } from '../api/me'
 import { clearToken, setToken } from '../api/token'
-import { SessaoContext, type Sessao, type StatusSessao } from './SessaoContext'
+import { SessaoContext, type FalhaSessao, type Sessao, type StatusSessao } from './SessaoContext'
+
+type Recuperacao = { tipo: 'ok'; me: MeResponseDTO } | { tipo: 'anonimo' } | { tipo: 'indisponivel'; falha: FalhaSessao }
 
 // A recuperação da sessão é uma promessa de módulo, e não de componente: o StrictMode monta duas vezes em
 // desenvolvimento, e dois refreshes seguidos com o mesmo cookie contam como roubo para o backend (ele revoga
 // todas as sessões do usuário)
-let recuperacaoEmVoo: Promise<MeResponseDTO | null> | null = null
+let recuperacaoEmVoo: Promise<Recuperacao> | null = null
 
-function recuperarSessao(): Promise<MeResponseDTO | null> {
-    recuperacaoEmVoo ??= (async () => {
+function recuperarSessao(): Promise<Recuperacao> {
+    recuperacaoEmVoo ??= (async (): Promise<Recuperacao> => {
         try {
             await renovarSessao()
-            return await getMe()
-        } catch {
-            // Sem cookie, cookie vencido, backend fora do ar: em todos os casos não há sessão para mostrar
+            return { tipo: 'ok', me: await getMe() }
+        } catch (err) {
             clearToken()
-            return null
+            // Sem cookie ou cookie recusado (401/403): não há sessão. Qualquer outra falha (rede, 429, 5xx) não
+            // diz nada sobre a sessão, e mandar a pessoa para o login em silêncio pareceria que ela caiu
+            if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+                return { tipo: 'anonimo' }
+            }
+            return {
+                tipo: 'indisponivel',
+                falha: {
+                    mensagem: err instanceof Error ? err.message : 'Não foi possível verificar a sua sessão agora.',
+                },
+            }
         }
     })().finally(() => {
         recuperacaoEmVoo = null
@@ -32,6 +43,8 @@ export default function SessaoProvider({ children }: { children: ReactNode }) {
     const navigate = useNavigate()
     const [status, setStatus] = useState<StatusSessao>('desconhecido')
     const [me, setMe] = useState<MeResponseDTO | null>(null)
+    const [falha, setFalha] = useState<FalhaSessao | null>(null)
+    const [sessaoExpirada, setSessaoExpirada] = useState(false)
     // Espelho síncrono do status, para garantirSessao decidir sem esperar o próximo render
     const statusRef = useRef<StatusSessao>('desconhecido')
 
@@ -43,15 +56,20 @@ export default function SessaoProvider({ children }: { children: ReactNode }) {
     const encerrarLocalmente = useCallback(() => {
         clearToken()
         setMe(null)
+        setFalha(null)
         mudarStatus('anonimo')
     }, [mudarStatus])
 
-    // Sessão perdida no meio do uso (refresh recusado): limpa o estado e navega, sem recarregar a página
+    // Sessão perdida no meio do uso (refresh recusado): limpa o estado e leva ao login, com o aviso e a tela de
+    // onde a pessoa estava, sem recarregar a página
     useEffect(
         () =>
             registrarAoExpirarSessao(() => {
+                const de = window.location.pathname + window.location.search
                 encerrarLocalmente()
-                navigate('/login', { replace: true })
+                // A rota protegida também redireciona ao ver "sem sessão"; o flag faz as duas levarem o mesmo aviso
+                setSessaoExpirada(true)
+                navigate('/login', { replace: true, state: { aviso: 'sessao-expirada', de } })
             }),
         [encerrarLocalmente, navigate],
     )
@@ -59,10 +77,26 @@ export default function SessaoProvider({ children }: { children: ReactNode }) {
     const garantirSessao = useCallback(async () => {
         if (statusRef.current !== 'desconhecido') return
         mudarStatus('carregando')
+        setFalha(null)
         const recuperado = await recuperarSessao()
-        setMe(recuperado)
-        mudarStatus(recuperado ? 'autenticado' : 'anonimo')
+        if (recuperado.tipo === 'ok') {
+            setMe(recuperado.me)
+            mudarStatus('autenticado')
+        } else if (recuperado.tipo === 'anonimo') {
+            setMe(null)
+            mudarStatus('anonimo')
+        } else {
+            setMe(null)
+            setFalha(recuperado.falha)
+            mudarStatus('indisponivel')
+        }
     }, [mudarStatus])
+
+    const tentarNovamente = useCallback(async () => {
+        if (statusRef.current !== 'indisponivel') return
+        mudarStatus('desconhecido')
+        await garantirSessao()
+    }, [garantirSessao, mudarStatus])
 
     const entrar = useCallback(
         async (email: string, senha: string) => {
@@ -71,6 +105,8 @@ export default function SessaoProvider({ children }: { children: ReactNode }) {
             try {
                 const dados = await getMe()
                 setMe(dados)
+                setFalha(null)
+                setSessaoExpirada(false)
                 mudarStatus('autenticado')
                 return dados
             } catch (err) {
@@ -111,8 +147,8 @@ export default function SessaoProvider({ children }: { children: ReactNode }) {
     }, [])
 
     const valor = useMemo<Sessao>(
-        () => ({ status, me, garantirSessao, entrar, sair, recarregarMe, atualizarMe }),
-        [status, me, garantirSessao, entrar, sair, recarregarMe, atualizarMe],
+        () => ({ status, me, falha, sessaoExpirada, garantirSessao, tentarNovamente, entrar, sair, recarregarMe, atualizarMe }),
+        [status, me, falha, sessaoExpirada, garantirSessao, tentarNovamente, entrar, sair, recarregarMe, atualizarMe],
     )
 
     return <SessaoContext.Provider value={valor}>{children}</SessaoContext.Provider>

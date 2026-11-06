@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
+    addDays,
     addMonths,
     eachDayOfInterval,
     endOfMonth,
@@ -14,16 +15,21 @@ import {
     subMonths,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, ExternalLink, User, Clock, Coins, Award } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, Hexagon, HandCoins, Maximize2, Minimize2, User } from 'lucide-react'
 
+import ApelidoDestaque from '../components/ApelidoDestaque'
+import Botao from '../components/Botao'
+import Card from '../components/Card'
+import EstadoVazio from '../components/EstadoVazio'
+import FaixaDemonstrativa from '../components/FaixaDemonstrativa'
 import LayoutPainel from '../components/LayoutPainel'
+import { useToast } from '../components/ToastContext'
 
 /**
  * Uma reunião marcada em uma data.
- * Por enquanto esses dados chegam via props (mock/estático).
- * Depois é só trocar a origem: buscar do backend por mês/ano
- * (ex: GET /reunioes?mes=10&ano=2025) e passar o array retornado
- * pra esse mesmo componente — o calendário em si não muda.
+ * Ainda não há endpoint de reuniões: o calendário nasce vazio e a pessoa pode carregar dados demonstrativos
+ * (fictícios) para conhecer a tela. Depois é só trocar a origem: buscar do backend por mês/ano
+ * (ex: GET /reunioes?mes=10&ano=2025) e passar o array retornado pela prop `reunioes` — o calendário em si não muda.
  */
 export interface Reuniao {
     id: string
@@ -63,51 +69,32 @@ interface CalendarioProps {
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
 /**
- * Dados de teste inseridos manualmente, direto aqui no arquivo.
- * Serve pra validar o calendário sem precisar de backend ainda.
- * Quando integrar com o banco, é só remover esse array e passar
- * as reuniões reais via prop `reunioes` (ou trocar o valor padrão
- * abaixo por um fetch).
- *
- * IMPORTANTE: a data é sempre no formato ISO "yyyy-MM-dd".
+ * Reuniões fictícias para a opção "Carregar dados demonstrativos". As datas são relativas ao mês atual (e não fixas),
+ * para sempre aparecerem na grade que a pessoa está vendo.
  */
-const REUNIOES_TESTE: Reuniao[] = [
-    {
-        id: '1',
-        data: '2026-09-22',
-        titulo: 'Apresentação do projeto',
-        horaInicio: '18:00',
-        horaFim: '22:00',
-        responsavel: 'PLAD Equipe',
-    },
-    {
-        id: '2',
-        data: '2026-09-05',
-        titulo: 'Reunião com psicólogo voluntário',
-        horaInicio: '09:00',
-        horaFim: '10:00',
-        responsavel: 'Dra. Ana Souza',
-    },
-    {
-        id: '3',
-        data: '2026-10-03',
-        titulo: 'Revisão de triagens',
-        horaInicio: '14:00',
-        horaFim: '15:30',
-    },
-]
+function gerarReunioesDemonstrativas(): Reuniao[] {
+    const inicioDoMes = startOfMonth(new Date())
+    const iso = (diasDepois: number) => format(addDays(inicioDoMes, diasDepois), 'yyyy-MM-dd')
+    return [
+        { id: 'demo-1', data: iso(4), titulo: 'Apresentação do projeto', horaInicio: '18:00', horaFim: '22:00', responsavel: 'PLAD Equipe' },
+        { id: 'demo-2', data: iso(11), titulo: 'Reunião com psicólogo voluntário', horaInicio: '09:00', horaFim: '10:00', responsavel: 'Psicóloga voluntária' },
+        { id: 'demo-3', data: iso(19), titulo: 'Roda de conversa', horaInicio: '14:00', horaFim: '15:30' },
+    ]
+}
 
 function capitalizar(texto: string) {
     return texto.charAt(0).toUpperCase() + texto.slice(1)
 }
 
-export default function Calendario({
-                                       reunioes = REUNIOES_TESTE,
-                                       contadores = CONTADORES_TESTE,
-                                       onDiaClick,
-                                   }: CalendarioProps) {
+export default function Calendario({ reunioes: reunioesProp, contadores = CONTADORES_TESTE, onDiaClick }: CalendarioProps) {
+    const { avisar } = useToast()
     const [mesAtual, setMesAtual] = useState(() => new Date())
     const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null)
+    const [demonstrativo, setDemonstrativo] = useState(false)
+    const reunioes = useMemo(
+        () => reunioesProp ?? (demonstrativo ? gerarReunioesDemonstrativas() : []),
+        [reunioesProp, demonstrativo],
+    )
 
     // Monta a grade de dias do mês (incluindo as pontas da semana anterior/seguinte,
     // que ficam em branco) sempre em cima do mês atual — isso é o que faz o
@@ -145,157 +132,177 @@ export default function Calendario({
         onDiaClick?.(dia, doDia)
     }
 
+    function carregarDemonstrativos() {
+        setDemonstrativo(true)
+        avisar('Dados demonstrativos carregados. São fictícios.', 'info')
+    }
+
     return (
         // A barra lateral (com o menu da conta) e o rodapé vêm do LayoutPainel; por enquanto o Painel é esta página
-        <LayoutPainel>
-                {/* Conteúdo principal */}
-                <main className="flex-1 px-10 py-10">
-                    {/* Contadores */}
-                    <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-                        <CardContador
-                            titulo="Contador de sobriedade"
-                            subtitulo="Livre de álcool há:"
-                            icone={<Clock size={16} />}
-                        >
-                        <span className="font-outfit text-3xl font-bold text-black">
+        <LayoutPainel titulo="Painel">
+            {/* Conteúdo principal */}
+            <main id="conteudo" tabIndex={-1} className="min-w-0 flex-1 px-3 py-6 focus:outline-none sm:px-4 md:px-10 md:py-10">
+                <ApelidoDestaque />
+
+                {/* Contadores: 1 coluna no celular, 2 de 640 px (o terceiro ocupa a linha) e 3 a partir de 1024 px */}
+                <section aria-label="Contadores" className="mb-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <CardContador
+                        titulo="Contador de sobriedade"
+                        subtitulo="Livre de álcool há:"
+                        emblema={<Clock size={20} aria-hidden="true" />}
+                    >
+                        <span className="font-outfit text-[16cqw] font-bold leading-none text-black">
                             {contadores.diasSobriedade} {contadores.diasSobriedade === 1 ? 'dia' : 'dias'}
                         </span>
-                        </CardContador>
+                    </CardContador>
 
-                        <CardContador
-                            titulo="Contador de economia"
-                            subtitulo="Economizados:"
-                            icone={<Coins size={16} />}
-                        >
-                        <span className="font-outfit text-3xl font-bold text-black leading-none">
-                            {contadores.valorEconomizado.toLocaleString('pt-BR', {
-                                style: 'currency',
-                                currency: 'BRL',
-                                maximumFractionDigits: 0,
-                            })}
+                    <CardContador
+                        titulo="Contador de economia"
+                        subtitulo="Economizados:"
+                        emblema={<HandCoins size={20} aria-hidden="true" />}
+                    >
+                        <span className="font-outfit text-[16cqw] font-bold leading-none text-black">
+                            R${contadores.valorEconomizado.toLocaleString('pt-BR')}
                         </span>
-                            <span className="text-[10px] font-bold text-black mt-1">REAIS</span>
-                        </CardContador>
+                        <span className="mt-2 text-xs font-bold text-black">REAIS</span>
+                    </CardContador>
 
-                        <CardContador
-                            titulo="Próximo marco"
-                            subtitulo={
-                                <>
-                                    <strong className="text-black">
-                                        Você e {contadores.proximoMarco.outrosUsuarios.toLocaleString('pt-BR')} outros
-                                    </strong>{' '}
-                                    alcançarão este marco a seguir
-                                </>
-                            }
-                            icone={<Award size={16} />}
-                        >
-                        <span className="font-outfit text-xl font-bold text-black leading-tight">
-                            {contadores.proximoMarco.semanas}{' '}
-                            {contadores.proximoMarco.semanas === 1 ? 'semana' : 'semanas'}
-                        </span>
-                            <span className="text-[10px] text-orange-500 mt-0.5">
-                            {contadores.proximoMarco.dias} dias
-                        </span>
-                            <span className="w-16 h-px bg-[#5271ff] mt-1" />
-                        </CardContador>
-                    </section>
-
-                    <h1 className="font-outfit text-2xl font-bold text-black">Calendário de reuniões</h1>
-                    <p className="text-gray-500 text-sm mt-1 mb-8">
-                        Visualize as reuniões marcadas e participe
-                    </p>
-
-                    <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100 border border-gray-100 p-8">
-                        {/* Cabeçalho do mês */}
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="font-outfit text-lg font-bold text-black">
-                                {capitalizar(format(mesAtual, "MMMM 'de' yyyy", { locale: ptBR }))}
-                            </h2>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setMesAtual((m) => subMonths(m, 1))
-                                        setDiaSelecionado(null)
-                                    }}
-                                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition"
-                                    aria-label="Mês anterior"
-                                >
-                                    <ChevronLeft size={16} />
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setMesAtual((m) => addMonths(m, 1))
-                                        setDiaSelecionado(null)
-                                    }}
-                                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition"
-                                    aria-label="Próximo mês"
-                                >
-                                    <ChevronRight size={16} />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Dias da semana */}
-                        <div className="grid grid-cols-7 gap-3 mb-3">
-                            {DIAS_SEMANA.map((dia) => (
-                                <span
-                                    key={dia}
-                                    className="text-xs font-semibold text-gray-400 text-center uppercase tracking-wide"
-                                >
-                                {dia}
+                    <CardContador
+                        titulo="Próximo marco"
+                        subtitulo={
+                            <>
+                                <strong className="text-black">
+                                    Você e {contadores.proximoMarco.outrosUsuarios.toLocaleString('pt-BR')} outros
+                                </strong>{' '}
+                                alcançarão este marco a seguir
+                            </>
+                        }
+                        emblema={
+                            <span className="relative flex size-8 items-center justify-center text-plad">
+                                <Hexagon size={32} fill="currentColor" aria-hidden="true" className="absolute" />
+                                <span className="relative text-xs font-bold text-white">{contadores.proximoMarco.dias}</span>
                             </span>
-                            ))}
-                        </div>
+                        }
+                        className="sm:col-span-2 lg:col-span-1"
+                    >
+                        <span className="font-outfit text-[10cqw] font-bold leading-tight text-black">
+                            {contadores.proximoMarco.semanas} {contadores.proximoMarco.semanas === 1 ? 'semana' : 'semanas'}
+                        </span>
+                        <span className="mt-1 text-xs text-texto-suave">{contadores.proximoMarco.dias} dias</span>
+                        <span className="mt-1 h-px w-[36%] bg-plad" />
+                    </CardContador>
+                </section>
+                <h1 className="font-outfit text-2xl font-bold text-black">Calendário de reuniões</h1>
+                <p className="mb-6 mt-1 text-sm text-texto-suave">Visualize as reuniões marcadas e participe</p>
 
-                        {/* Semanas */}
-                        <div className="flex flex-col gap-3">
-                            {semanas.map((semana, i) => (
-                                <div key={i} className="grid grid-cols-7 gap-3">
-                                    {semana.map((dia) => {
-                                        const noMes = isSameMonth(dia, mesAtual)
-                                        const chave = format(dia, 'yyyy-MM-dd')
+                {demonstrativo && <FaixaDemonstrativa onRemover={() => setDemonstrativo(false)} />}
 
-                                        // Dias fora do mês atual ficam em branco, sem número —
-                                        // igual ao layout do Figma.
-                                        if (!noMes) {
-                                            return <div key={chave} className="h-16 rounded-2xl" />
-                                        }
-
-                                        const doDia = reunioesDoDia(dia)
-                                        const temReuniao = doDia.length > 0
-                                        const selecionado = diaSelecionado === chave
-
-                                        return (
-                                            <div key={chave} className="relative">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleClickDia(dia)}
-                                                    className={[
-                                                        'h-16 w-full rounded-2xl flex items-start justify-start p-3 text-sm font-semibold transition text-left',
-                                                        selecionado
-                                                            ? 'bg-[#5271ff] text-white'
-                                                            : temReuniao
-                                                                ? 'bg-indigo-50 text-black hover:bg-indigo-100'
-                                                                : 'text-gray-700 hover:bg-gray-50',
-                                                        isToday(dia) && !selecionado ? 'ring-1 ring-[#5271ff]' : '',
-                                                    ].join(' ')}
-                                                >
-                                                    {format(dia, 'd')}
-                                                </button>
-
-                                                {selecionado && temReuniao && (
-                                                    <PopupReuniao dia={dia} reunioes={doDia} />
-                                                )}
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            ))}
+                <div className="rounded-painel border border-gray-100 bg-white p-2 shadow-painel sm:p-3 md:p-8">
+                    {/* Cabeçalho do mês */}
+                    <div className="mb-4 flex items-center justify-between md:mb-6">
+                        <h2 className="font-outfit text-lg font-bold text-black">
+                            {capitalizar(format(mesAtual, "MMMM 'de' yyyy", { locale: ptBR }))}
+                        </h2>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMesAtual((m) => subMonths(m, 1))
+                                    setDiaSelecionado(null)
+                                }}
+                                className="flex size-11 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition hover:bg-gray-50"
+                                aria-label="Mês anterior"
+                            >
+                                <ChevronLeft size={18} aria-hidden="true" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMesAtual((m) => addMonths(m, 1))
+                                    setDiaSelecionado(null)
+                                }}
+                                className="flex size-11 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition hover:bg-gray-50"
+                                aria-label="Próximo mês"
+                            >
+                                <ChevronRight size={18} aria-hidden="true" />
+                            </button>
                         </div>
                     </div>
-                </main>
+
+                    {reunioes.length === 0 && (
+                        <EstadoVazio
+                            className="mb-4 rounded-cartao border border-dashed border-gray-300"
+                            icone={<CalendarDays size={26} />}
+                            titulo="Nenhuma reunião marcada ainda"
+                            descricao="Quando houver reuniões, elas aparecem marcadas no calendário. Você pode conhecer a tela com exemplos."
+                            acao={
+                                <Botao variante="secundario" onClick={carregarDemonstrativos}>
+                                    Carregar dados demonstrativos
+                                </Botao>
+                            }
+                        />
+                    )}
+
+                    {/* Dias da semana */}
+                    <div className="mb-2 grid grid-cols-7 gap-1 md:mb-3 md:gap-3">
+                        {DIAS_SEMANA.map((dia) => (
+                            <span key={dia} className="text-center text-xs font-semibold uppercase tracking-wide text-texto-suave">
+                                {dia}
+                            </span>
+                        ))}
+                    </div>
+
+                    {/* Semanas */}
+                    <div className="flex flex-col gap-1 md:gap-3">
+                        {semanas.map((semana, i) => (
+                            <div key={i} className="grid grid-cols-7 gap-1 md:gap-3">
+                                {semana.map((dia) => {
+                                    const noMes = isSameMonth(dia, mesAtual)
+                                    const chave = format(dia, 'yyyy-MM-dd')
+
+                                    // Dias fora do mês atual ficam em branco, sem número —
+                                    // igual ao layout do Figma.
+                                    if (!noMes) {
+                                        return <div key={chave} className="h-12 rounded-2xl md:h-16" />
+                                    }
+
+                                    const doDia = reunioesDoDia(dia)
+                                    const temReuniao = doDia.length > 0
+                                    const selecionado = diaSelecionado === chave
+                                    const descricaoDia = `${format(dia, "d 'de' MMMM", { locale: ptBR })}${
+                                        temReuniao ? `, ${doDia.length === 1 ? '1 reunião' : `${doDia.length} reuniões`}` : ''
+                                    }`
+
+                                    return (
+                                        <div key={chave} className="relative">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleClickDia(dia)}
+                                                aria-label={descricaoDia}
+                                                aria-expanded={temReuniao ? selecionado : undefined}
+                                                aria-current={isToday(dia) ? 'date' : undefined}
+                                                className={[
+                                                    'flex h-12 w-full items-start justify-start rounded-2xl p-1.5 text-left text-sm font-semibold transition md:h-16 md:p-3',
+                                                    selecionado
+                                                        ? 'bg-plad text-white'
+                                                        : temReuniao
+                                                          ? 'bg-plad-fundo text-black hover:bg-borda-suave'
+                                                          : 'text-gray-700 hover:bg-gray-50',
+                                                    isToday(dia) && !selecionado ? 'ring-1 ring-plad' : '',
+                                                ].join(' ')}
+                                            >
+                                                {format(dia, 'd')}
+                                            </button>
+
+                                            {selecionado && temReuniao && <PopupReuniao dia={dia} reunioes={doDia} />}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </main>
         </LayoutPainel>
     )
 }
@@ -310,14 +317,29 @@ interface PosicaoPopup {
     dy: number
 }
 
+
+// "09:00" - "10:30" → "1 h 30 min"; só para o detalhe do popup expandido
+function duracao(inicio: string, fim: string): string | null {
+    const minutos = (hora: string) => {
+        const [h, m] = hora.split(':').map(Number)
+        return h * 60 + m
+    }
+    const total = minutos(fim) - minutos(inicio)
+    if (!Number.isFinite(total) || total <= 0) return null
+    const h = Math.floor(total / 60)
+    const m = total % 60
+    return [h ? `${h} h` : '', m ? `${m} min` : ''].filter(Boolean).join(' ')
+}
+
 /**
  * Popup com os detalhes das reuniões do dia. Abre à direita e alinhado ao topo
  * do dia; se não couber na janela, vai para a esquerda e/ou sobe, e por fim é
  * deslocado o mínimo necessário para ficar totalmente visível.
- */
-function PopupReuniao({ dia, reunioes }: { dia: Date; reunioes: Reuniao[] }) {
+ */function PopupReuniao({ dia, reunioes }: { dia: Date; reunioes: Reuniao[] }) {
     const popupRef = useRef<HTMLDivElement>(null)
     const [pos, setPos] = useState<PosicaoPopup>({ lado: 'direita', vertical: 'topo', dx: 0, dy: 0 })
+    // O botão de expandir (canto do popup) mostra a duração e quem organiza; o popup cresce e se reposiciona
+    const [expandido, setExpandido] = useState(false)
 
     useLayoutEffect(() => {
         function reposicionar() {
@@ -355,97 +377,102 @@ function PopupReuniao({ dia, reunioes }: { dia: Date; reunioes: Reuniao[] }) {
                 atual.dx === proxima.dx &&
                 atual.dy === proxima.dy
                     ? atual
-                    : proxima
+                    : proxima,
             )
         }
 
         reposicionar()
         window.addEventListener('resize', reposicionar)
         return () => window.removeEventListener('resize', reposicionar)
-    }, [])
+    }, [expandido])
 
     return (
         <div
             ref={popupRef}
+            role="region"
+            aria-label="Reuniões do dia"
             style={pos.dx || pos.dy ? { transform: `translate(${pos.dx}px, ${pos.dy}px)` } : undefined}
             className={[
-                'absolute z-20 w-64 bg-[#120063] text-white rounded-xl shadow-2xl p-4 space-y-3',
+                'absolute z-20 space-y-3 rounded-xl bg-plad-rodape p-4 text-white shadow-2xl transition-[width]',
+                expandido ? 'w-80' : 'w-64',
                 pos.lado === 'direita' ? 'left-full ml-3' : 'right-full mr-3',
                 pos.vertical === 'topo' ? 'top-0' : 'bottom-0',
             ].join(' ')}
         >
-            <ExternalLink size={14} className="text-gray-300 ml-auto" />
+            <button
+                type="button"
+                onClick={() => setExpandido((atual) => !atual)}
+                aria-expanded={expandido}
+                aria-label={expandido ? 'Recolher detalhes da reunião' : 'Expandir detalhes da reunião'}
+                className="-mr-2 -mt-2 ml-auto flex size-11 items-center justify-center rounded-botao text-plad-claro transition hover:bg-white/10"
+            >
+                {expandido ? <Minimize2 size={16} aria-hidden="true" /> : <Maximize2 size={16} aria-hidden="true" />}
+            </button>
             {reunioes.map((r) => (
-                <div key={r.id} className="space-y-1">
-                    <p className="font-outfit font-semibold text-sm leading-snug">{r.titulo}</p>
-                    <p className="text-xs text-gray-300">
-                        {capitalizar(format(dia, "EEEE, d 'de' MMMM", { locale: ptBR }))} · {r.horaInicio} -{' '}
-                        {r.horaFim}
+                <div key={r.id} className="-mt-3 space-y-1">
+                    <p className="font-outfit text-sm font-semibold leading-snug">{r.titulo}</p>
+                    <p className="text-xs text-gray-200">
+                        {capitalizar(format(dia, "EEEE, d 'de' MMMM", { locale: ptBR }))} · {r.horaInicio} - {r.horaFim}
                     </p>
-                    {r.responsavel && (
-                        <p className="flex items-center gap-1.5 text-xs text-gray-300 pt-1">
-                            <User size={12} />
-                            {r.responsavel}
-                        </p>
+                    {expandido && (
+                        <dl className="space-y-1 border-t border-white/20 pt-2 text-xs text-gray-200">
+                            {duracao(r.horaInicio, r.horaFim) && (
+                                <div className="flex gap-2">
+                                    <dt className="font-semibold text-white">Duração</dt>
+                                    <dd>{duracao(r.horaInicio, r.horaFim)}</dd>
+                                </div>
+                            )}
+                            {r.responsavel && (
+                                <div className="flex items-center gap-2">
+                                    <dt className="flex items-center gap-1.5 font-semibold text-white">
+                                        <User size={12} aria-hidden="true" />
+                                        Organizador
+                                    </dt>
+                                    <dd>{r.responsavel}</dd>
+                                </div>
+                            )}
+                        </dl>
                     )}
                 </div>
             ))}
         </div>
     )
 }
-
 function CardContador({
-                          titulo,
-                          subtitulo,
-                          icone,
-                          children,
-                      }: {
+    titulo,
+    subtitulo,
+    emblema,
+    className = '',
+    children,
+}: {
     titulo: string
     subtitulo: React.ReactNode
-    icone: React.ReactNode
+    emblema: React.ReactNode
+    className?: string
     children: React.ReactNode
 }) {
     return (
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 flex flex-col items-center shadow-sm">
-            <div className="w-full">
-                <span className="inline-block bg-[#5271ff] text-white font-outfit text-sm font-medium px-3 py-0.5 rounded-md">
-                    {titulo}
-                </span>
-                <p className="text-xs text-gray-700 mt-2 ml-1 min-h-[2rem] leading-snug">{subtitulo}</p>
-            </div>
+        <Card titulo={titulo} className={`flex flex-col md:p-5 ${className}`.trim()}>
+            <p className="mt-2 min-h-[2.75rem] text-sm leading-snug text-gray-800">{subtitulo}</p>
 
-            {/* Círculo com halo */}
-            <div className="relative mt-4 mb-2">
+            {/* Anel de até 250 px com brilho azul e círculo branco de 64% (160 px no Figma). O tamanho dos números
+                acompanha o anel (unidades cqw), então o contador cabe em qualquer largura de cartão */}
+            <div className="@container relative mx-auto mt-3 aspect-square w-full max-w-[250px]">
                 <div
-                    className="w-44 h-44 rounded-full border border-gray-200 flex items-center justify-center"
+                    aria-hidden="true"
+                    className="absolute inset-0 rounded-full border border-gray-300"
                     style={{
-                        // O degradê nasce na borda do círculo de dentro (~73% do raio)
-                        // e vai sumindo até o anel de fora.
-                        background:
-                            'radial-gradient(circle closest-side, rgba(131,151,255,0.6) 70%, rgba(131,151,255,0) 100%)',
+                        // O degradê nasce na borda do círculo de dentro e vai sumindo até o anel de fora
+                        background: 'radial-gradient(circle closest-side, rgba(131,151,255,0.6) 64%, rgba(131,151,255,0) 100%)',
                     }}
-                >
-                    <div className="w-32 h-32 rounded-full bg-white flex flex-col items-center justify-center">
-                        {children}
-                    </div>
+                />
+                <div className="absolute left-1/2 top-1/2 flex aspect-square w-[64%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full bg-white">
+                    {children}
                 </div>
-                <div className="absolute top-2 left-2 w-8 h-8 rounded-full bg-white shadow flex items-center justify-center text-[#5271ff]">
-                    {icone}
+                <div className="absolute left-[18%] top-[13%] flex size-10 items-center justify-center rounded-full bg-white text-black shadow">
+                    {emblema}
                 </div>
             </div>
-        </div>
+        </Card>
     )
 }
-
-/**
- * Como testar com datas manuais:
- * basta editar o array REUNIOES_TESTE lá em cima — adicione,
- * troque ou remova objetos com a data (ISO "yyyy-MM-dd"), título,
- * horário e responsável que quiser. Como ele é o valor padrão da
- * prop `reunioes`, renderizando <Calendario /> sem passar nada
- * você já vê essas datas marcadas no mês certo.
- *
- * Se algum dia quiser passar reuniões vindas de outro lugar
- * (ex: do banco), é só usar <Calendario reunioes={dadosReais} />
- * — a prop explícita sempre sobrescreve o array de teste.
- */

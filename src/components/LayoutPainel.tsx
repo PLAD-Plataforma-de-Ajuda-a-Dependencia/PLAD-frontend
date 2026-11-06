@@ -1,33 +1,33 @@
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ClipboardList, LayoutDashboard, Video } from 'lucide-react'
+import { ClipboardList, House, Video, type LucideIcon } from 'lucide-react'
 // CalendarDays e Users voltam quando as páginas Calendário e Comunidade existirem
 import type { UserType } from '../api/auth'
 import { useSessao } from '../session/SessaoContext'
 import MenuConta from './MenuConta'
-
-// Mesmos ícones usados no footer da Home
-import instaIcon from '../assets/insta.png'
-import youtubeIcon from '../assets/youtube.png'
-import xIcon from '../assets/x.png'
-import linkedinIcon from '../assets/linkedin.png'
+import Rodape from './Rodape'
+import useTitulo from './useTitulo'
 
 /**
- * Casca das páginas com barra lateral (Calendário e Gestão): barra à esquerda, o conteúdo da página e o rodapé.
- * A página entrega o seu `<main className="flex-1 ...">` como `children`.
- * É o único lugar com o MenuConta (os três pontos que expandem o painel da conta).
+ * Casca das páginas com navegação (Calendário e Gestão), como no Figma: a página inteira é lilás (`plad-fundo`), a
+ * sidebar fica direto sobre ela (sem coluna branca) e o conteúdo vai num painel branco arredondado, com o rodapé
+ * embaixo. No celular (abaixo de `md`) a sidebar vira a barra fixa na parte de baixo, com alvos de pelo menos 44 px.
+ * A página entrega o seu `<main id="conteudo" className="min-w-0 ...">` como `children`; o painel branco é daqui.
+ * O MenuConta (a conta, o apelido e o "sair") só existe aqui.
  */
 
 interface ItemBarra {
-    to: string
+    // Sem `to`, o item é mostrado como "em breve": a página ainda não existe
+    to?: string
     label: string
-    icone: ReactNode
+    icone: LucideIcon
+    // Painel é um ícone cheio no Figma; os outros são só contorno
+    cheio?: boolean
 }
 
-const PAINEL: ItemBarra = { to: '/Calendario', label: 'Painel', icone: <LayoutDashboard size={20} /> }
-// A página /reuniao ainda não existe (cai na Home), como já era
-const REUNIAO: ItemBarra = { to: '/reuniao', label: 'Reunião', icone: <Video size={20} /> }
-const GESTAO: ItemBarra = { to: '/adminPsico', label: 'Gestão', icone: <ClipboardList size={20} /> }
+const PAINEL: ItemBarra = { to: '/Calendario', label: 'Painel', icone: House, cheio: true }
+const REUNIAO: ItemBarra = { label: 'Reunião', icone: Video }
+const GESTAO: ItemBarra = { to: '/adminPsico', label: 'Gestão', icone: ClipboardList }
 
 // O Calendário mostra os contadores de sobriedade do dependente, então o admin só tem a Gestão
 const ITENS_POR_PAPEL: Record<UserType, ItemBarra[]> = {
@@ -36,104 +36,91 @@ const ITENS_POR_PAPEL: Record<UserType, ItemBarra[]> = {
     admin: [GESTAO],
 }
 
-export default function LayoutPainel({ children }: { children: ReactNode }) {
+export default function LayoutPainel({ titulo, children }: { titulo?: string; children: ReactNode }) {
     const { me } = useSessao()
     const { pathname } = useLocation()
     const itens = me ? ITENS_POR_PAPEL[me.type_user] : []
+    useTitulo(titulo)
+
+    const ativo = (item: ItemBarra) => item.to !== undefined && pathname.toLowerCase() === item.to.toLowerCase()
 
     return (
-        <div className="w-full min-h-screen bg-[#f4f5fd] flex flex-col font-roboto text-slate-900">
-            <div className="flex flex-1">
-                {/* Sidebar: a coluna branca acompanha a página inteira e o conteúdo dela fica preso à altura da janela
-                    (sticky), para os três pontos e o painel expandido do MenuConta estarem sempre à vista, mesmo
-                    em páginas altas; max-h-full impede que passe por cima do rodapé */}
-                <aside className="w-24 lg:w-28 bg-white shadow-sm shrink-0">
-                    <div className="sticky top-0 flex h-screen max-h-full flex-col items-center py-8">
-                        <span className="font-outfit font-bold text-lg text-black mb-10">PLAD</span>
+        <div className="flex min-h-screen w-full flex-col bg-plad-fundo font-roboto text-slate-900">
+            <a
+                href="#conteudo"
+                className="sr-only rounded-botao bg-white px-4 py-2 font-medium text-plad shadow focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50"
+            >
+                Pular para o conteúdo
+            </a>
 
-                        <nav className="flex flex-col items-center gap-8 flex-1">
+            <div className="flex flex-1">
+                {/* Sidebar (a partir de md), direto sobre o lilás: a coluna acompanha a página inteira e o conteúdo dela
+                    fica preso à altura da janela (sticky), para os três pontos do MenuConta estarem sempre à vista */}
+                <aside className="hidden w-24 shrink-0 md:block">
+                    <div className="sticky top-0 flex h-screen max-h-full flex-col py-8">
+                        <span className="mb-10 pl-3.5 font-roboto text-xl font-bold text-black">PLAD</span>
+
+                        <nav aria-label="Navegação principal" className="flex flex-1 flex-col items-center gap-6">
                             {itens.map((item) => (
-                                <SidebarLink
-                                    key={item.to}
-                                    to={item.to}
-                                    icon={item.icone}
-                                    label={item.label}
-                                    active={pathname.toLowerCase() === item.to.toLowerCase()}
-                                />
+                                <ItemNav key={item.label} item={item} ativo={ativo(item)} />
                             ))}
                         </nav>
 
-                        {/* Os três pontos expandem o painel da conta (que ancora neste bloco sticky); o círculo roxo é o avatar provisório */}
-                        <MenuConta />
+                        <div className="flex flex-col items-center">
+                            <MenuConta variante="lateral" />
+                        </div>
                     </div>
                 </aside>
 
-                {children}
+                {/* O painel branco arredondado: 40 px de folga em cima, 60 à direita e 20 embaixo no computador */}
+                <div className="min-w-0 flex-1 p-2 sm:p-3 md:pb-5 md:pl-0 md:pr-[60px] md:pt-10">
+                    <div className="rounded-painel bg-white shadow-painel">{children}</div>
+                </div>
             </div>
 
-            {/* Footer */}
-            <footer id="contato" className="bg-[#120063] text-white py-12 px-8">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-gray-300">
-                    <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
-                        <span>Plad</span>
-                        <span>|</span>
-                        <span>Sobre</span>
-                        <span>|</span>
-                        <span>Ética e Compliance</span>
-                        <span>|</span>
-                        <span>Fale Conosco</span>
-                        <span>|</span>
-                        <span>Informações Legais</span>
-                        <span>|</span>
-                        <span>Privacidade</span>
-                    </div>
+            {/* Na parte de baixo ficam a barra do celular e, por baixo dela, o fim do rodapé */}
+            <Rodape className="pb-24 md:pb-12" />
 
-                    {/* Ícones Sociais no Footer */}
-                    <div className="flex items-center space-x-5">
-                        <a href="#instagram" aria-label="Instagram" className="hover:opacity-80 transition-opacity">
-                            <img src={instaIcon} alt="Instagram" className="w-5 h-5 object-contain" />
-                        </a>
-                        <a href="#youtube" aria-label="YouTube" className="hover:opacity-80 transition-opacity">
-                            <img src={youtubeIcon} alt="YouTube" className="w-5 h-5 object-contain" />
-                        </a>
-                        <a href="#linkedin" aria-label="LinkedIn" className="hover:opacity-80 transition-opacity">
-                            <img src={linkedinIcon} alt="LinkedIn" className="w-5 h-5 object-contain" />
-                        </a>
-                        <a href="#x" aria-label="X" className="hover:opacity-80 transition-opacity">
-                            <img src={xIcon} alt="X" className="w-5 h-5 object-contain" />
-                        </a>
-                    </div>
-                </div>
-                <div className="max-w-7xl mx-auto mt-8 text-center md:text-left text-xs text-gray-400">
-                    © Plataforma de Ajuda a Dependência
-                </div>
-            </footer>
+            {/* Barra de navegação do celular (abaixo de md) */}
+            <nav
+                aria-label="Navegação principal"
+                className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-stretch border-t border-gray-200 bg-white md:hidden"
+            >
+                {itens.map((item) => (
+                    <ItemNav key={item.label} item={item} ativo={ativo(item)} naBarra />
+                ))}
+                <MenuConta variante="barra" />
+            </nav>
         </div>
     )
 }
 
-function SidebarLink({
-    to,
-    icon,
-    label,
-    active = false,
-}: {
-    to: string
-    icon: ReactNode
-    label: string
-    active?: boolean
-}) {
+function ItemNav({ item, ativo, naBarra = false }: { item: ItemBarra; ativo: boolean; naBarra?: boolean }) {
+    const Icone = item.icone
+    const base = `flex min-h-11 min-w-11 flex-col items-center justify-center gap-1 px-2 text-xs font-medium ${naBarra ? 'flex-1' : ''}`
+    const icone = (
+        <Icone size={naBarra ? 22 : 28} fill={item.cheio ? 'currentColor' : 'none'} aria-hidden="true" />
+    )
+
+    if (!item.to) {
+        return (
+            <span aria-disabled="true" className={`${base} cursor-not-allowed text-gray-600`}>
+                {icone}
+                {item.label}
+                <span className="-mt-0.5 text-xs">em breve</span>
+            </span>
+        )
+    }
+
     return (
         <Link
-            to={to}
-            aria-current={active ? 'page' : undefined}
-            className={[
-                'flex flex-col items-center gap-1 text-[11px] font-medium transition',
-                active ? 'text-[#5271ff]' : 'text-gray-400 hover:text-gray-600',
-            ].join(' ')}
+            to={item.to}
+            aria-current={ativo ? 'page' : undefined}
+            className={`${base} transition ${ativo ? 'text-plad-active' : 'text-black hover:text-gray-600'}`}
         >
-            {icon}
-            {label}
+            {/* O ícone ativo usa o azul da marca; o rótulo, o azul mais escuro, que passa no contraste sobre o lilás */}
+            <span className={ativo ? 'text-plad' : ''}>{icone}</span>
+            {item.label}
         </Link>
     )
 }

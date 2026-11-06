@@ -1,3 +1,4 @@
+import { registrarFalhaDeRede, registrarRespostaDaApi } from './conexao'
 import { clearToken, getToken, setToken } from './token'
 import { montarMensagem, traduzirErroDeCampo } from './erros'
 
@@ -145,13 +146,16 @@ async function enviar(method: Method, path: string, body: unknown, token: string
     }
 
     try {
-        return await fetch(`${getApiUrl()}${path}`, {
+        const response = await fetch(`${getApiUrl()}${path}`, {
             method,
             headers,
             body: body === undefined ? undefined : JSON.stringify(body),
             credentials: CAMINHOS_COM_COOKIE.includes(path) ? 'include' : undefined,
         })
+        registrarRespostaDaApi()
+        return response
     } catch {
+        registrarFalhaDeRede()
         throw new ApiError(0)
     }
 }
