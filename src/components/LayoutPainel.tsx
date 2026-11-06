@@ -26,12 +26,14 @@ interface ItemBarra {
 }
 
 const PAINEL: ItemBarra = { to: '/Calendario', label: 'Painel', icone: House, cheio: true }
+// A página "Reunião" (Minhas reuniões) é do dependente; para o psicólogo o item continua "em breve", sem página
 const REUNIAO: ItemBarra = { label: 'Reunião', icone: Video }
+const REUNIAO_DO_DEPENDENTE: ItemBarra = { to: '/minhas-reunioes', label: 'Reunião', icone: Video }
 const GESTAO: ItemBarra = { to: '/adminPsico', label: 'Gestão', icone: ClipboardList }
 
 // O Calendário mostra os contadores de sobriedade do dependente, então o admin só tem a Gestão
 const ITENS_POR_PAPEL: Record<UserType, ItemBarra[]> = {
-    dependente: [PAINEL, REUNIAO],
+    dependente: [PAINEL, REUNIAO_DO_DEPENDENTE],
     psicologo: [PAINEL, REUNIAO, GESTAO],
     admin: [GESTAO],
 }

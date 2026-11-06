@@ -6,6 +6,7 @@ import AdminPsico from './pages/adminPsico'
 import Triagem from './pages/Triagem'
 import Calendario from './pages/Calendario'
 import MinhaConta from './pages/minhaConta'
+import MinhasReunioes from './pages/minhasReunioes'
 import NaoEncontrada from './pages/naoEncontrada'
 import BannerConexao from './components/BannerConexao'
 import RotaProtegida from './components/RotaProtegida'
@@ -30,6 +31,7 @@ export default function App() {
                         {/* Psicólogo e admin não abrem a triagem */}
                         <Route element={<RotaProtegida papeis={['dependente']} />}>
                             <Route path="/Triagem" element={<Triagem />} />
+                            <Route path="/minhas-reunioes" element={<MinhasReunioes />} />
                         </Route>
                         <Route element={<RotaProtegida papeis={['dependente', 'psicologo']} />}>
                             <Route path="/Calendario" element={<Calendario />} />

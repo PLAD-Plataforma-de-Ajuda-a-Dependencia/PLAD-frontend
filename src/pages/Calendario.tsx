@@ -33,11 +33,27 @@ import {
     Pencil,
     Plus,
     User,
+    UserMinus,
+    UserPlus,
+    Users,
 } from 'lucide-react'
 
 import { ApiError, errosPorCampo } from '../api/client'
-import { cancelMeeting, createMeeting, endMeeting, listMeetings, updateMeeting } from '../api/meetings'
-import type { MeetingRequestDTO, MeetingResponseDTO, MeetingStatus } from '../api/meetings'
+import {
+    cancelMeeting,
+    cancelRegistration,
+    createMeeting,
+    endMeeting,
+    getMeeting,
+    listMeetings,
+    listParticipants,
+    mensagemDeInscricao,
+    registerForMeeting,
+    textoDeVagas,
+    updateMeeting,
+    vagasRestantes,
+} from '../api/meetings'
+import type { MeetingParticipantDTO, MeetingRequestDTO, MeetingResponseDTO, MeetingStatus } from '../api/meetings'
 import ApelidoDestaque from '../components/ApelidoDestaque'
 import Botao from '../components/Botao'
 import Campo from '../components/Campo'
@@ -68,6 +84,8 @@ export interface Reuniao {
     descricao: string | null
     capacidade: number
     minha: boolean // quem está vendo é o anfitrião
+    inscritos: number // quantos dependentes estão inscritos: todo papel vê só este número
+    inscritoPorMim: boolean // quem está vendo é um dependente inscrito
 }
 
 /**
@@ -129,6 +147,8 @@ function daReuniaoDaApi(m: MeetingResponseDTO): Reuniao {
         descricao: m.description,
         capacidade: m.capacity,
         minha: m.owned_by_me,
+        inscritos: m.registered_count,
+        inscritoPorMim: m.registered_by_me,
     }
 }
 
@@ -200,6 +220,7 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
 
     // O backend é quem garante o acesso (403 para quem não é psicólogo); aqui é só para não mostrar botões inúteis
     const ehPsicologo = useSessao().me?.type_user === 'psicologo'
+    const ehDependente = useSessao().me?.type_user === 'dependente'
     // Um dia que já passou não recebe reunião nova (o início precisa ser daqui a pelo menos 60 minutos)
     const podeCriarNoDia = (dia: Date) => ehPsicologo && !isBefore(dia, startOfDay(new Date()))
 
@@ -254,6 +275,59 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
             setAcaoPendente(null)
             setDiaSelecionado(null)
             recarregar()
+        }
+    }
+
+    // Inscrição (dependente): o popup troca de estado com a reunião que a API devolve, sem buscar o mês inteiro de novo
+    const [inscricaoEmCurso, setInscricaoEmCurso] = useState<string | null>(null) // id da reunião que está sendo alterada
+    const [inscricaoACancelar, setInscricaoACancelar] = useState<Reuniao | null>(null)
+
+    function substituirReuniao(atualizada: MeetingResponseDTO) {
+        setCarga(
+            (atual) =>
+                atual && {
+                    ...atual,
+                    reunioes: atual.reunioes.map((r) => (r.id === String(atualizada.id) ? daReuniaoDaApi(atualizada) : r)),
+                },
+        )
+    }
+
+    // Depois de um erro (reunião lotada, começou, cancelada) a tela pode estar velha: lê só essa reunião, em silêncio
+    async function atualizarReuniao(id: string) {
+        try {
+            substituirReuniao(await getMeeting(Number(id)))
+        } catch {
+            // fica como está; o mês é buscado de novo ao trocar de mês ou ao pedir "Tentar de novo"
+        }
+    }
+
+    async function inscrever(reuniao: Reuniao) {
+        if (inscricaoEmCurso) return
+        setInscricaoEmCurso(reuniao.id)
+        try {
+            substituirReuniao(await registerForMeeting(Number(reuniao.id)))
+            avisar('Inscrição feita.', 'sucesso')
+        } catch (erro) {
+            avisar(mensagemDeInscricao(erro), 'erro')
+            await atualizarReuniao(reuniao.id)
+        } finally {
+            setInscricaoEmCurso(null)
+        }
+    }
+
+    async function confirmarCancelarInscricao() {
+        if (!inscricaoACancelar || inscricaoEmCurso) return
+        const reuniao = inscricaoACancelar
+        setInscricaoEmCurso(reuniao.id)
+        try {
+            await cancelRegistration(Number(reuniao.id))
+            avisar('Inscrição cancelada.', 'sucesso')
+        } catch (erro) {
+            avisar(mensagemDeInscricao(erro), 'erro')
+        } finally {
+            await atualizarReuniao(reuniao.id)
+            setInscricaoEmCurso(null)
+            setInscricaoACancelar(null)
         }
     }
 
@@ -434,6 +508,10 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
                                                     onEditar={(r) => abrirFormulario(r, r.data)}
                                                     onCancelar={(r) => setAcaoPendente({ tipo: 'cancelar', reuniao: r })}
                                                     onEncerrar={(r) => setAcaoPendente({ tipo: 'encerrar', reuniao: r })}
+                                                    ehDependente={ehDependente}
+                                                    inscricaoEmCurso={inscricaoEmCurso}
+                                                    onInscrever={inscrever}
+                                                    onCancelarInscricao={setInscricaoACancelar}
                                                 />
                                             )}
                                         </div>
@@ -471,6 +549,22 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
                 onConfirmar={confirmarAcao}
                 onCancelar={() => setAcaoPendente(null)}
             />
+
+            {/* Cancelar a inscrição pode custar a vaga (se a reunião lotar, não dá para voltar): pede confirmação, sem o vermelho */}
+            <ModalConfirmacao
+                aberto={inscricaoACancelar !== null}
+                titulo="Cancelar a sua inscrição?"
+                descricao={
+                    inscricaoACancelar
+                        ? `Você deixa de ter um lugar em "${inscricaoACancelar.titulo}". Se a reunião lotar, pode não ser possível voltar.`
+                        : undefined
+                }
+                rotuloConfirmar="Cancelar inscrição"
+                rotuloCancelar="Voltar"
+                carregando={inscricaoEmCurso !== null}
+                onConfirmar={confirmarCancelarInscricao}
+                onCancelar={() => setInscricaoACancelar(null)}
+            />
         </LayoutPainel>
     )
 }
@@ -507,11 +601,94 @@ interface PopupReuniaoProps {
     onEditar: (reuniao: Reuniao) => void
     onCancelar: (reuniao: Reuniao) => void
     onEncerrar: (reuniao: Reuniao) => void
+    /** Quem vê o popup é um dependente: ele vê as vagas e pode se inscrever */
+    ehDependente: boolean
+    /** Id da reunião cuja inscrição está sendo alterada agora (o botão fica ocupado) */
+    inscricaoEmCurso: string | null
+    onInscrever: (reuniao: Reuniao) => void
+    onCancelarInscricao: (reuniao: Reuniao) => void
 }
 
 // Botões do popup: ele é roxo escuro, então os do tema (azul sobre azul) não têm contraste; contorno branco, 44 px
 const CLASSE_ACAO_POPUP =
-    'inline-flex min-h-11 items-center gap-1.5 rounded-botao border border-white/50 px-3 text-sm font-medium text-white transition-colors hover:bg-white/10'
+    'inline-flex min-h-11 items-center gap-1.5 rounded-botao border border-white/50 px-3 text-sm font-medium text-white transition-colors hover:bg-white/10 disabled:cursor-wait disabled:opacity-60'
+
+/**
+ * Lista de quem se inscreveu na reunião, só para o anfitrião. É o único lugar da interface com o NOME REAL de um
+ * dependente (decisão 26 do backend). Cada leitura é auditada (uma entrada por inscrito, que ele vê no log de acessos),
+ * por isso: nada de buscar ao abrir o popup, só quando a pessoa pede; ao esconder e mostrar de novo, usa o que já leu em
+ * vez de ler outra vez; e a lista fica só neste estado, que some quando o popup fecha (nunca em contexto ou storage).
+ */
+function ListaInscritos({ reuniaoId, total }: { reuniaoId: string; total: number }) {
+    const idAviso = useId()
+    const [inscritos, setInscritos] = useState<MeetingParticipantDTO[] | null>(null)
+    const [aberta, setAberta] = useState(false)
+    const [carregando, setCarregando] = useState(false)
+    const [erro, setErro] = useState<string | null>(null)
+
+    if (total === 0) {
+        return <p className="text-xs text-gray-200">Ninguém se inscreveu ainda.</p>
+    }
+
+    async function alternar() {
+        setErro(null)
+        if (aberta) {
+            setAberta(false)
+            return
+        }
+        if (inscritos) {
+            setAberta(true)
+            return
+        }
+        setCarregando(true)
+        try {
+            setInscritos(await listParticipants(Number(reuniaoId)))
+            setAberta(true)
+        } catch (e) {
+            setErro(e instanceof ApiError ? e.message : 'Não foi possível carregar os inscritos.')
+        } finally {
+            setCarregando(false)
+        }
+    }
+
+    return (
+        <div className="space-y-2">
+            <button
+                type="button"
+                onClick={alternar}
+                disabled={carregando}
+                aria-expanded={aberta}
+                aria-busy={carregando}
+                aria-describedby={idAviso}
+                className={CLASSE_ACAO_POPUP}
+            >
+                <Users size={14} aria-hidden="true" />
+                {carregando ? 'Carregando…' : aberta ? 'Esconder inscritos' : `Ver inscritos (${total})`}
+            </button>
+            <p id={idAviso} className="text-xs text-gray-200">
+                Ao abrir a lista, o acesso fica registrado e cada pessoa listada pode ver que um psicólogo a consultou.
+            </p>
+            {erro && (
+                <p role="alert" className="text-xs font-semibold text-white">
+                    {erro}
+                </p>
+            )}
+            {aberta && inscritos && (
+                <ul className="max-h-48 space-y-2 overflow-y-auto rounded-lg bg-white/10 p-3 text-xs">
+                    {inscritos.length === 0 && <li className="text-gray-200">Ninguém se inscreveu ainda.</li>}
+                    {inscritos.map((p) => (
+                        <li key={p.nickname}>
+                            <span className="sr-only">Apelido: </span>
+                            <span className="font-semibold text-white">{p.nickname}</span>
+                            <span className="sr-only">. Nome: </span>
+                            <span className="block text-gray-200">{p.real_name}</span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    )
+}
 
 /**
  * Popup com os detalhes das reuniões do dia. Abre à direita e alinhado ao topo
@@ -520,7 +697,18 @@ const CLASSE_ACAO_POPUP =
  * O anfitrião vê, nas reuniões dele, o que ainda pode fazer: editar (antes de começar), cancelar (até terminar) e
  * encerrar (depois de começar). Só reunião agendada tem ações.
  */
-function PopupReuniao({ dia, reunioes, onCriar, onEditar, onCancelar, onEncerrar }: PopupReuniaoProps) {
+function PopupReuniao({
+    dia,
+    reunioes,
+    onCriar,
+    onEditar,
+    onCancelar,
+    onEncerrar,
+    ehDependente,
+    inscricaoEmCurso,
+    onInscrever,
+    onCancelarInscricao,
+}: PopupReuniaoProps) {
     // O popup é montado ao abrir o dia, então "agora" é o instante da abertura; se a situação mudar enquanto ele está
     // aberto, o backend responde 409 e a lista é buscada de novo
     const [agora] = useState(() => Date.now())
@@ -610,6 +798,42 @@ function PopupReuniao({ dia, reunioes, onCriar, onEditar, onCancelar, onEncerrar
                             {r.status === 'cancelled' ? 'Reunião cancelada' : 'Reunião encerrada'}
                         </p>
                     )}
+                    {/* Vagas: só de reunião agendada que ainda não começou (nas outras, o número não diz nada) */}
+                    {r.status === 'scheduled' && agora < Date.parse(r.inicio) && (
+                        <p className="text-xs font-semibold text-white">
+                            {textoDeVagas(vagasRestantes(r.capacidade, r.inscritos))}
+                            {r.inscritoPorMim && ' · Inscrição confirmada'}
+                        </p>
+                    )}
+                    {ehDependente && r.status === 'scheduled' && agora < Date.parse(r.inicio) && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                            {r.inscritoPorMim ? (
+                                <button
+                                    type="button"
+                                    onClick={() => onCancelarInscricao(r)}
+                                    disabled={inscricaoEmCurso !== null}
+                                    aria-busy={inscricaoEmCurso === r.id}
+                                    className={CLASSE_ACAO_POPUP}
+                                >
+                                    <UserMinus size={14} aria-hidden="true" />
+                                    Cancelar inscrição
+                                </button>
+                            ) : (
+                                vagasRestantes(r.capacidade, r.inscritos) > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => onInscrever(r)}
+                                        disabled={inscricaoEmCurso !== null}
+                                        aria-busy={inscricaoEmCurso === r.id}
+                                        className={CLASSE_ACAO_POPUP}
+                                    >
+                                        <UserPlus size={14} aria-hidden="true" />
+                                        {inscricaoEmCurso === r.id ? 'Inscrevendo…' : 'Inscrever-se'}
+                                    </button>
+                                )
+                            )}
+                        </div>
+                    )}
                     {r.minha && r.status === 'scheduled' && (
                         <div className="flex flex-wrap gap-2 pt-1">
                             {agora < Date.parse(r.inicio) && (
@@ -632,6 +856,8 @@ function PopupReuniao({ dia, reunioes, onCriar, onEditar, onCancelar, onEncerrar
                             )}
                         </div>
                     )}
+                    {/* O anfitrião vê quem se inscreveu, em qualquer estado da reunião (cancelada e encerrada incluídas) */}
+                    {r.minha && <ListaInscritos reuniaoId={r.id} total={r.inscritos} />}
                     {expandido && (
                         <dl className="space-y-1 border-t border-white/20 pt-2 text-xs text-gray-200">
                             {duracao(r.horaInicio, r.horaFim) && (

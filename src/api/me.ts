@@ -62,11 +62,20 @@ export interface MeExportNicknameDTO {
     replaced_at: string | null
 }
 
+/** plad.dto.MeExportMeetingRegistrationDTO: uma reunião em que o dependente se inscreveu */
+export interface MeExportMeetingRegistrationDTO {
+    meeting_id: number
+    title: string
+    starts_at: string
+    registered_at: string
+}
+
 /** plad.dto.MeExportDependentDTO */
 export interface MeExportDependentDTO {
     nickname: string
     created_at: string
     nickname_history: MeExportNicknameDTO[]
+    meeting_registrations: MeExportMeetingRegistrationDTO[]
 }
 
 /** plad.dto.MeExportPsychologistDTO */

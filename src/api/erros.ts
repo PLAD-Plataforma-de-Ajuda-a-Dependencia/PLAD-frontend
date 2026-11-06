@@ -12,6 +12,8 @@ export type ErrorCode =
     | 'INVALID_MEETING'
     | 'MEETING_NOT_FOUND'
     | 'MEETING_CONFLICT'
+    | 'MEETING_FULL'
+    | 'MEETING_CAPACITY_TOO_LOW'
     | 'CONSENT_REQUIRED'
     | 'UNAUTHORIZED'
     | 'INVALID_CREDENTIALS'
@@ -40,6 +42,9 @@ export const MENSAGENS_ERRO: Record<ErrorCode, string> = {
     MEETING_NOT_FOUND: 'Essa reunião não existe mais.',
     MEETING_CONFLICT:
         'Isso não é possível agora: o horário cruza outra reunião sua, ou a reunião já começou, terminou ou foi cancelada.',
+    MEETING_FULL: 'Essa reunião não tem mais vagas.',
+    MEETING_CAPACITY_TOO_LOW:
+        'Já há mais pessoas inscritas do que essa capacidade. Aumente o número de vagas ou deixe como está.',
     CONSENT_REQUIRED:
         'Os Termos de Uso e a Política de Privacidade mudaram. Recarregue a página e aceite as versões em vigor.',
     UNAUTHORIZED: 'Sua sessão expirou. Entre novamente para continuar.',
