@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from 'react'
-import type { UserType } from '../api/auth'
+import type { TipoDeCadastro } from '../api/auth'
 import perfisImg from '../assets/perfis.png'
 
 // Tela de escolha de perfil (Figma "/triagem1", frame Desktop 1:3)
 
 interface OpcaoPerfil {
-    tipo: UserType
+    tipo: TipoDeCadastro
     titulo: string
     descricao: string
     // Os ícones são recortes de um único PNG (perfis.png), convertidos para px a partir das porcentagens do Figma.
@@ -36,11 +36,11 @@ const OPCOES: OpcaoPerfil[] = [
 ]
 
 interface EscolhaTipoContaProps {
-    onEscolher: (tipo: UserType) => void
+    onEscolher: (tipo: TipoDeCadastro) => void
 }
 
 export default function EscolhaTipoConta({ onEscolher }: EscolhaTipoContaProps) {
-    const [selecionado, setSelecionado] = useState<UserType | null>(null)
+    const [selecionado, setSelecionado] = useState<TipoDeCadastro | null>(null)
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault()

@@ -1,9 +1,12 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { register } from '../api/auth'
-import { getErrorMessage } from '../api/client'
-import type { CadastroEtapa1, Sex, UserType } from '../api/auth'
+import { errosPorCampo, getErrorMessage } from '../api/client'
+import { ACEITE_VIGENTE } from '../api/consentimento'
+import type { CadastroEtapa1, Sex, TipoDeCadastro } from '../api/auth'
 import EscolhaTipoConta from '../components/EscolhaTipoConta'
+import ErroCampo from '../components/ErroCampo'
+import LinkDocumento from '../components/LinkDocumento'
 import PsicologoSolicita from './psicologoSolicita'
 
 const GENEROS: { value: Sex; label: string }[] = [
@@ -14,10 +17,10 @@ const GENEROS: { value: Sex; label: string }[] = [
     { value: 'outro', label: 'Outro' },
 ]
 
-const TIPOS_CONTA: readonly string[] = ['dependente', 'psicologo'] satisfies UserType[]
+const TIPOS_CONTA: readonly string[] = ['dependente', 'psicologo'] satisfies TipoDeCadastro[]
 
 // O tipo vem do query param ?tipo=, escolhido na tela de perfil
-function isTipoConta(value: string | null): value is UserType {
+function isTipoConta(value: string | null): value is TipoDeCadastro {
     return value !== null && TIPOS_CONTA.includes(value)
 }
 
@@ -43,8 +46,11 @@ export default function CriarConta() {
         birthDate: '',
         gender: '',
     })
+    const [aceitou, setAceitou] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    // Erros de campo (VALIDATION_ERROR) por nome snake_case do campo, já em pt-BR
+    const [errosCampo, setErrosCampo] = useState<Record<string, string>>({})
     // Etapa 1 do psicólogo, guardada só em memória: no state do router a senha ficaria no histórico do navegador
     const [etapa1Psicologo, setEtapa1Psicologo] = useState<CadastroEtapa1 | null>(null)
 
@@ -55,7 +61,16 @@ export default function CriarConta() {
     }
 
     if (etapa1Psicologo) {
-        return <PsicologoSolicita etapa1={etapa1Psicologo} />
+        return (
+            <PsicologoSolicita
+                etapa1={etapa1Psicologo}
+                // Erro num campo da etapa 1: volta para ela com o que foi digitado (formData continua aqui) e a mensagem
+                onVoltar={(erros) => {
+                    setErrosCampo(erros)
+                    setEtapa1Psicologo(null)
+                }}
+            />
+        )
     }
 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -65,9 +80,14 @@ export default function CriarConta() {
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
+        setErrosCampo({})
         // O select de gênero é `required`; o guard também estreita o tipo de '' | Sex para Sex
         if (!isSex(formData.gender)) {
             setError('Selecione o gênero.')
+            return
+        }
+        if (!aceitou) {
+            setError('Aceite os Termos de Uso e a Política de Privacidade para criar a conta.')
             return
         }
         const dados: CadastroEtapa1 = {
@@ -77,9 +97,11 @@ export default function CriarConta() {
             birth_date: formData.birthDate,
             gender: formData.gender,
             type_user: tipo,
+            ...ACEITE_VIGENTE,
         }
 
         if (dados.type_user === 'psicologo') {
+            setError(null)
             setEtapa1Psicologo(dados)
             return
         }
@@ -90,6 +112,7 @@ export default function CriarConta() {
             await register(dados)
             navigate('/login', { replace: true, state: { email: dados.email } })
         } catch (err) {
+            setErrosCampo(errosPorCampo(err))
             setError(getErrorMessage(err, 'Não foi possível criar a conta.'))
         } finally {
             setLoading(false)
@@ -124,8 +147,11 @@ export default function CriarConta() {
                             required
                             value={formData.email}
                             onChange={handleChange}
+                            aria-invalid={Boolean(errosCampo.email)}
+                            aria-describedby={errosCampo.email ? 'erro-email' : undefined}
                             className={inputClass}
                         />
+                        <ErroCampo id="erro-email" mensagem={errosCampo.email} />
                     </div>
 
                     <div>
@@ -136,8 +162,11 @@ export default function CriarConta() {
                             required
                             value={formData.realName}
                             onChange={handleChange}
+                            aria-invalid={Boolean(errosCampo.real_name)}
+                            aria-describedby={errosCampo.real_name ? 'erro-real-name' : undefined}
                             className={inputClass}
                         />
+                        <ErroCampo id="erro-real-name" mensagem={errosCampo.real_name} />
                     </div>
 
                     <div>
@@ -149,8 +178,11 @@ export default function CriarConta() {
                             minLength={8}
                             value={formData.password}
                             onChange={handleChange}
+                            aria-invalid={Boolean(errosCampo.password)}
+                            aria-describedby={errosCampo.password ? 'erro-password' : undefined}
                             className={inputClass}
                         />
+                        <ErroCampo id="erro-password" mensagem={errosCampo.password} />
                     </div>
 
                     <div>
@@ -164,12 +196,23 @@ export default function CriarConta() {
                             required
                             value={formData.birthDate}
                             onChange={handleChange}
+                            aria-invalid={Boolean(errosCampo.birth_date)}
+                            aria-describedby={errosCampo.birth_date ? 'erro-birth-date' : undefined}
                             className={inputClass}
                         />
+                        <ErroCampo id="erro-birth-date" mensagem={errosCampo.birth_date} />
                     </div>
 
                     <div>
-                        <select name="gender" required value={formData.gender} onChange={handleChange} className={inputClass}>
+                        <select
+                            name="gender"
+                            required
+                            value={formData.gender}
+                            onChange={handleChange}
+                            aria-invalid={Boolean(errosCampo.gender)}
+                            aria-describedby={errosCampo.gender ? 'erro-gender' : undefined}
+                            className={inputClass}
+                        >
                             <option value="" disabled>
                                 Gênero
                             </option>
@@ -179,6 +222,25 @@ export default function CriarConta() {
                                 </option>
                             ))}
                         </select>
+                        <ErroCampo id="erro-gender" mensagem={errosCampo.gender} />
+                    </div>
+
+                    {/* Aceite dos documentos (LGPD art. 11); as versões enviadas estão em api/consentimento.ts */}
+                    <div className="pt-2">
+                        <label className="flex items-start gap-2.5 text-xs text-gray-700 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                name="aceite"
+                                required
+                                checked={aceitou}
+                                onChange={(e) => setAceitou(e.target.checked)}
+                                className="mt-0.5 w-4 h-4 shrink-0 accent-plad"
+                            />
+                            <span>
+                                Li e aceito os <LinkDocumento documento="termos" /> e a{' '}
+                                <LinkDocumento documento="privacidade" />
+                            </span>
+                        </label>
                     </div>
 
                     {/* Avisos */}

@@ -1,8 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError, getErrorMessage } from '../api/client'
+import { exportMyData } from '../api/me'
 import { FREE_TEXT_MAX_LENGTH, getQuestions, resubmitTriage, submitTriage } from '../api/triage'
 import type { QuestionResponseDTO, TriageRequestDTO } from '../api/triage'
+import { useSessao } from '../session/SessaoContext'
 
 /**
  * Página de Triagem — PLAD
@@ -14,6 +16,9 @@ import type { QuestionResponseDTO, TriageRequestDTO } from '../api/triage'
  *
  * As perguntas vêm de GET /triage/questions e as respostas vão para
  * POST /triage com os `code`s das opções. Pergunta pulada não é enviada.
+ *
+ * Quem já enviou a triagem (`has_triage` no GET /me) entra em modo de edição: as respostas atuais vêm do bloco
+ * `triage` de GET /me/export (o backend não tem GET /triage) e o envio é PUT /triage, que as substitui.
  */
 
 // Valores respondidos por id de pergunta: códigos das opções ou [texto]
@@ -58,6 +63,10 @@ const primaryButtonClass =
     'w-full py-3.5 px-6 bg-plad hover:bg-plad-hover active:bg-plad-active text-white font-medium rounded-lg transition-colors text-base disabled:opacity-60 disabled:cursor-not-allowed'
 
 export default function Triagem() {
+    const { me, atualizarMe } = useSessao()
+    // Definido na entrada da tela e não acompanha o `me`: enviar a triagem pela primeira vez muda has_triage,
+    // mas não deve recarregar a tela por baixo da pessoa
+    const [modoEdicao] = useState(() => me?.has_triage === true)
     const [questions, setQuestions] = useState<QuestionResponseDTO[] | null>(null)
     const [loadError, setLoadError] = useState<string | null>(null)
     const [currentIndex, setCurrentIndex] = useState(0)
@@ -66,22 +75,35 @@ export default function Triagem() {
     const [error, setError] = useState<string | null>(null)
     // O POST devolveu 409: já existe triagem, e a tela oferece substituí-la via PUT
     const [alreadySubmitted, setAlreadySubmitted] = useState(false)
-    const [result, setResult] = useState<'submitted' | 'resubmitted' | null>(null)
+    // 'nenhuma' = o POST respondeu 204: nenhuma pergunta respondida, nada guardado
+    const [result, setResult] = useState<'submitted' | 'resubmitted' | 'nenhuma' | null>(null)
 
     useEffect(() => {
-        // Sem token, o client já manda para o login
+        // Sem sessão, a RotaProtegida já mandou para o login
         let ignore = false
-        getQuestions()
-            .then((data) => {
-                if (!ignore) setQuestions(data)
-            })
-            .catch((err: unknown) => {
-                if (!ignore) setLoadError(getErrorMessage(err, 'Não foi possível carregar as perguntas.'))
-            })
+        const carregar = async () => {
+            const perguntas = await getQuestions()
+            const atuais: Answers = {}
+            if (modoEdicao) {
+                // As respostas guardadas casam com as perguntas pelo código, que não muda entre ambientes
+                const exportado = await exportMyData()
+                for (const resposta of exportado.triage?.answers ?? []) {
+                    const pergunta = perguntas.find((q) => q.code === resposta.question_code)
+                    if (pergunta) atuais[pergunta.id] = resposta.values
+                }
+            }
+            if (!ignore) {
+                setQuestions(perguntas)
+                setAnswers(atuais)
+            }
+        }
+        carregar().catch((err: unknown) => {
+            if (!ignore) setLoadError(getErrorMessage(err, 'Não foi possível carregar as perguntas.'))
+        })
         return () => {
             ignore = true
         }
-    }, [])
+    }, [modoEdicao])
 
     if (loadError) {
         return (
@@ -101,18 +123,33 @@ export default function Triagem() {
 
     const send = async (resubmit: boolean, currentAnswers: Answers = answers) => {
         if (sending) return
+        const request = buildRequest(questions, currentAnswers)
+        // PUT sem respostas é 400 INVALID_TRIAGE e o POST sem respostas não guarda nada: nos dois casos
+        // a pessoa só está enviando uma triagem vazia
+        if (resubmit && request.answers.length === 0) {
+            setError('Responda pelo menos uma pergunta para atualizar a triagem.')
+            return
+        }
         setSending(true)
         setError(null)
         try {
-            const request = buildRequest(questions, currentAnswers)
             if (resubmit) {
                 await resubmitTriage(request)
+                setResult('resubmitted')
             } else {
-                await submitTriage(request)
+                const triagem = await submitTriage(request)
+                if (triagem) {
+                    atualizarMe({ has_triage: true })
+                    setResult('submitted')
+                } else {
+                    // 204: nada foi guardado, então has_triage continua falso e dá para responder depois
+                    setResult('nenhuma')
+                }
             }
-            setResult(resubmit ? 'resubmitted' : 'submitted')
         } catch (err) {
-            if (!resubmit && err instanceof ApiError && err.status === 409) {
+            if (!resubmit && err instanceof ApiError && err.code === 'TRIAGE_ALREADY_EXISTS') {
+                // O backend já tinha uma triagem que o `me` não mostrava: alinha o estado e oferece substituir
+                atualizarMe({ has_triage: true })
                 setAlreadySubmitted(true)
             } else {
                 setError(getErrorMessage(err, 'Não foi possível enviar a triagem.'))
@@ -126,9 +163,29 @@ export default function Triagem() {
         return (
             <TriagemLayout>
                 <h1 className="font-outfit text-2xl font-semibold text-black mb-4 leading-snug">
-                    {result === 'submitted' ? 'Triagem enviada!' : 'Respostas atualizadas!'}
+                    {result === 'submitted'
+                        ? 'Triagem enviada!'
+                        : result === 'resubmitted'
+                          ? 'Respostas atualizadas!'
+                          : 'Nenhuma resposta enviada'}
                 </h1>
-                <p className="text-sm text-gray-600">Obrigado por responder. Suas respostas foram registradas.</p>
+                <p className="text-sm text-gray-600">
+                    {result === 'nenhuma'
+                        ? 'Você não respondeu nenhuma pergunta, então nada foi guardado. Você pode responder quando quiser.'
+                        : 'Obrigado por responder. Suas respostas foram registradas.'}
+                </p>
+                {result === 'nenhuma' && (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setResult(null)
+                            setCurrentIndex(0)
+                        }}
+                        className="mt-6 text-xs text-plad hover:underline self-start font-medium"
+                    >
+                        Responder agora
+                    </button>
+                )}
                 <Link to="/Calendario" className="mt-6 text-xs text-plad hover:underline self-start font-medium">
                     Prosseguir
                 </Link>
@@ -198,7 +255,7 @@ export default function Triagem() {
 
     const goNext = () => {
         if (isLast) {
-            send(false)
+            send(modoEdicao)
             return
         }
         setCurrentIndex((i) => i + 1)
@@ -209,7 +266,7 @@ export default function Triagem() {
         setAnswers(next)
         if (isLast) {
             // envia o valor já limpo, porque o state só atualiza no próximo render
-            send(false, next)
+            send(modoEdicao, next)
             return
         }
         setCurrentIndex((i) => i + 1)
@@ -226,11 +283,17 @@ export default function Triagem() {
                         </p>
                     )}
                     <button type="button" onClick={goNext} disabled={sending} className={primaryButtonClass}>
-                        {isLast ? (sending ? 'Enviando…' : 'Concluir') : 'Próximo'}
+                        {isLast ? (sending ? 'Enviando…' : modoEdicao ? 'Atualizar respostas' : 'Concluir') : 'Próximo'}
                     </button>
                 </>
             }
         >
+            {modoEdicao && (
+                <p className="text-xs text-gray-600 mt-4 text-center">
+                    Suas respostas atuais estão marcadas. Altere o que quiser e atualize no final.
+                </p>
+            )}
+
             {/* Conteúdo da pergunta atual */}
             <span className="text-xs text-black mt-4 mb-3">
                 Pergunta {String(currentIndex + 1).padStart(2, '0')} de {String(total).padStart(2, '0')}

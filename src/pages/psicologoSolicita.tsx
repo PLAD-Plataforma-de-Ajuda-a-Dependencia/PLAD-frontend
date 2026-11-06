@@ -1,8 +1,9 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { register } from '../api/auth'
-import { getErrorMessage } from '../api/client'
+import { ApiError, errosPorCampo, getErrorMessage } from '../api/client'
 import type { CadastroEtapa1, CrmCrpType } from '../api/auth'
+import ErroCampo from '../components/ErroCampo'
 
 interface PsychologistFormData {
     graduate: string
@@ -13,9 +14,15 @@ interface PsychologistFormData {
 interface PsychologistRegisterProps {
     // Dados da etapa 1, passados em memória por /criar-conta
     etapa1: CadastroEtapa1
+    // Chamado quando o erro é de um campo da etapa 1 (e-mail, senha, nascimento...): /criar-conta volta para ela
+    // com o que foi digitado e mostra as mensagens (erros por nome de campo, já em pt-BR)
+    onVoltar: (erros: Record<string, string>) => void
 }
 
-export default function PsychologistRegister({ etapa1 }: PsychologistRegisterProps) {
+// Campos que esta etapa mostra; qualquer outro erro de campo pertence à etapa 1
+const CAMPOS_DESTA_ETAPA = ['credential_type', 'crm_crp_number', 'graduate']
+
+export default function PsychologistRegister({ etapa1, onVoltar }: PsychologistRegisterProps) {
     const navigate = useNavigate()
 
     const [formData, setFormData] = useState<PsychologistFormData>({
@@ -25,6 +32,7 @@ export default function PsychologistRegister({ etapa1 }: PsychologistRegisterPro
     })
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [errosCampo, setErrosCampo] = useState<Record<string, string>>({})
 
     const handleChange = (
         e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -44,6 +52,7 @@ export default function PsychologistRegister({ etapa1 }: PsychologistRegisterPro
 
         setLoading(true)
         setError(null)
+        setErrosCampo({})
         try {
             await register({
                 ...etapa1,
@@ -53,7 +62,16 @@ export default function PsychologistRegister({ etapa1 }: PsychologistRegisterPro
             })
             navigate('/login', { replace: true, state: { email: etapa1.email } })
         } catch (err) {
-            setError(getErrorMessage(err, 'Não foi possível concluir o cadastro.'))
+            const erros = errosPorCampo(err)
+            if (err instanceof ApiError && err.code === 'EMAIL_IN_USE') {
+                // O e-mail é da etapa 1: sem voltar para lá não há como corrigir
+                onVoltar({ email: err.message })
+            } else if (Object.keys(erros).some((campo) => !CAMPOS_DESTA_ETAPA.includes(campo))) {
+                onVoltar(erros)
+            } else {
+                setErrosCampo(erros)
+                setError(getErrorMessage(err, 'Não foi possível concluir o cadastro.'))
+            }
         } finally {
             setLoading(false)
         }
@@ -83,8 +101,10 @@ export default function PsychologistRegister({ etapa1 }: PsychologistRegisterPro
                             placeholder="Formação acadêmica"
                             value={formData.graduate}
                             onChange={handleChange}
+                            aria-invalid={Boolean(errosCampo.graduate)}
                             className="w-full px-4 py-3.5 border border-plad/60 rounded-sm text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-plad transition bg-white"
                         />
+                        <ErroCampo mensagem={errosCampo.graduate} />
                     </div>
 
                     <div>
@@ -97,6 +117,7 @@ export default function PsychologistRegister({ etapa1 }: PsychologistRegisterPro
                             <option value="CRP">CRP</option>
                             <option value="CRM">CRM</option>
                         </select>
+                        <ErroCampo mensagem={errosCampo.credential_type} />
                     </div>
 
                     <div>
@@ -107,8 +128,10 @@ export default function PsychologistRegister({ etapa1 }: PsychologistRegisterPro
                             required
                             value={formData.crmCrpNumber}
                             onChange={handleChange}
+                            aria-invalid={Boolean(errosCampo.crm_crp_number)}
                             className="w-full px-4 py-3.5 border border-plad/60 rounded-sm text-sm text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-plad transition bg-white"
                         />
+                        <ErroCampo mensagem={errosCampo.crm_crp_number} />
                     </div>
 
                     {/* Avisos */}

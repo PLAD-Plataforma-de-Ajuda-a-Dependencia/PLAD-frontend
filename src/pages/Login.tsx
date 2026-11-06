@@ -1,8 +1,7 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { login } from '../api/auth'
-import { ApiError, getErrorMessage } from '../api/client'
-import { saveToken } from '../api/token'
+import { getErrorMessage } from '../api/client'
+import { destinoPorPapel, useSessao } from '../session/SessaoContext'
 
 // O state do router pode ser qualquer coisa (ex.: navegação manual), então é conferido em vez de convertido com `as`
 // Enviado pelas telas de cadastro depois que a conta é criada
@@ -16,6 +15,7 @@ function getRegisteredEmail(state: unknown): string | undefined {
 export default function Login() {
     const navigate = useNavigate()
     const location = useLocation()
+    const { entrar } = useSessao()
     const registeredEmail = getRegisteredEmail(location.state)
 
     const [formData, setFormData] = useState({
@@ -35,15 +35,11 @@ export default function Login() {
         setLoading(true)
         setError(null)
         try {
-            const { token } = await login({ email: formData.email, password: formData.password })
-            saveToken(token)
-            navigate('/Triagem', { replace: true })
+            // O texto do erro (senha errada, 429 com o tempo de espera...) já vem em pt-BR do ApiError
+            const me = await entrar(formData.email, formData.password)
+            navigate(destinoPorPapel(me), { replace: true })
         } catch (err) {
-            if (err instanceof ApiError && err.status === 429) {
-                setError('Muitas tentativas. Aguarde um minuto e tente novamente.')
-            } else {
-                setError(getErrorMessage(err, 'Não foi possível entrar.'))
-            }
+            setError(getErrorMessage(err, 'Não foi possível entrar.'))
         } finally {
             setLoading(false)
         }

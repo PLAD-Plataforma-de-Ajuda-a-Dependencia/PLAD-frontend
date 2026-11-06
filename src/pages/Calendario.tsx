@@ -1,5 +1,4 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import {
     addMonths,
     eachDayOfInterval,
@@ -15,25 +14,9 @@ import {
     subMonths,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import {
-    LayoutDashboard,
-    Video,
-    // CalendarDays, Users — voltam quando os itens do menu forem reativados
-    ChevronLeft,
-    ChevronRight,
-    MoreHorizontal,
-    ExternalLink,
-    User,
-    Clock,
-    Coins,
-    Award,
-} from 'lucide-react'
+import { ChevronLeft, ChevronRight, ExternalLink, User, Clock, Coins, Award } from 'lucide-react'
 
-// Mesmos ícones usados no footer da Home
-import instaIcon from '../assets/insta.png'
-import youtubeIcon from '../assets/youtube.png'
-import xIcon from '../assets/x.png'
-import linkedinIcon from '../assets/linkedin.png'
+import LayoutPainel from '../components/LayoutPainel'
 
 /**
  * Uma reunião marcada em uma data.
@@ -163,34 +146,8 @@ export default function Calendario({
     }
 
     return (
-        <div className="w-full min-h-screen bg-[#f4f5fd] flex flex-col font-roboto text-slate-900">
-            <div className="flex flex-1">
-                {/* Sidebar */}
-                <aside className="w-24 lg:w-28 bg-white flex flex-col items-center py-8 shadow-sm shrink-0">
-                <span className="font-outfit font-bold text-lg text-black mb-10">
-                    PLAD
-                </span>
-
-                    <nav className="flex flex-col items-center gap-8 flex-1">
-                        {/* Por enquanto o Painel é a própria página de calendário */}
-                        <SidebarLink to="/calendario" icon={<LayoutDashboard size={20} />} label="Painel" active />
-                        <SidebarLink to="/reuniao" icon={<Video size={20} />} label="Reunião" />
-                        {/* Ocultados até as páginas existirem:
-                        <SidebarLink to="/calendario" icon={<CalendarDays size={20} />} label="Calendário" />
-                        <SidebarLink to="/comunidade" icon={<Users size={20} />} label="Comunidade" />
-                        */}
-                    </nav>
-
-                    <button
-                        type="button"
-                        className="text-gray-400 hover:text-gray-600 transition mb-4"
-                        aria-label="Mais opções"
-                    >
-                        <MoreHorizontal size={20} />
-                    </button>
-                    <div className="w-8 h-8 rounded-full bg-[#8397ff]" />
-                </aside>
-
+        // A barra lateral (com o menu da conta) e o rodapé vêm do LayoutPainel; por enquanto o Painel é esta página
+        <LayoutPainel>
                 {/* Conteúdo principal */}
                 <main className="flex-1 px-10 py-10">
                     {/* Contadores */}
@@ -339,46 +296,7 @@ export default function Calendario({
                         </div>
                     </div>
                 </main>
-            </div>
-
-            {/* Footer */}
-            <footer id="contato" className="bg-[#120063] text-white py-12 px-8">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-gray-300">
-                    <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
-                        <span>Plad</span>
-                        <span>|</span>
-                        <span>Sobre</span>
-                        <span>|</span>
-                        <span>Ética e Compliance</span>
-                        <span>|</span>
-                        <span>Fale Conosco</span>
-                        <span>|</span>
-                        <span>Informações Legais</span>
-                        <span>|</span>
-                        <span>Privacidade</span>
-                    </div>
-
-                    {/* Ícones Sociais no Footer */}
-                    <div className="flex items-center space-x-5">
-                        <a href="#instagram" aria-label="Instagram" className="hover:opacity-80 transition-opacity">
-                            <img src={instaIcon} alt="Instagram" className="w-5 h-5 object-contain" />
-                        </a>
-                        <a href="#youtube" aria-label="YouTube" className="hover:opacity-80 transition-opacity">
-                            <img src={youtubeIcon} alt="YouTube" className="w-5 h-5 object-contain" />
-                        </a>
-                        <a href="#linkedin" aria-label="LinkedIn" className="hover:opacity-80 transition-opacity">
-                            <img src={linkedinIcon} alt="LinkedIn" className="w-5 h-5 object-contain" />
-                        </a>
-                        <a href="#x" aria-label="X" className="hover:opacity-80 transition-opacity">
-                            <img src={xIcon} alt="X" className="w-5 h-5 object-contain" />
-                        </a>
-                    </div>
-                </div>
-                <div className="max-w-7xl mx-auto mt-8 text-center md:text-left text-xs text-gray-400">
-                    © Plataforma de Ajuda a Dependência
-                </div>
-            </footer>
-        </div>
+        </LayoutPainel>
     )
 }
 
@@ -516,31 +434,6 @@ function CardContador({
                 </div>
             </div>
         </div>
-    )
-}
-
-function SidebarLink({
-                         to,
-                         icon,
-                         label,
-                         active = false,
-                     }: {
-    to: string
-    icon: React.ReactNode
-    label: string
-    active?: boolean
-}) {
-    return (
-        <Link
-            to={to}
-            className={[
-                'flex flex-col items-center gap-1 text-[11px] font-medium transition',
-                active ? 'text-[#5271ff]' : 'text-gray-400 hover:text-gray-600',
-            ].join(' ')}
-        >
-            {icon}
-            {label}
-        </Link>
     )
 }
 

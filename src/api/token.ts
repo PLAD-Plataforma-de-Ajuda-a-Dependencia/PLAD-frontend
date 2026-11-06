@@ -1,29 +1,22 @@
-// Único lugar que lê e grava o JWT; trocar o storage é só mexer aqui
-const TOKEN_KEY = 'plad.token'
+// Único lugar que guarda o access token (JWT de 15 min): só em memória, nunca em localStorage/sessionStorage.
+// Recarregar a página apaga a variável; a sessão volta pelo cookie de refresh (POST /auth/refresh).
+let accessToken: string | null = null
 
-export function saveToken(token: string) {
-    localStorage.setItem(TOKEN_KEY, token)
+// Versões antigas do front guardavam o JWT aqui; apaga o que ficou nos navegadores
+try {
+    localStorage.removeItem('plad.token')
+} catch {
+    // storage indisponível (modo restrito do navegador): não há o que limpar
+}
+
+export function setToken(token: string) {
+    accessToken = token
 }
 
 export function getToken(): string | null {
-    return localStorage.getItem(TOKEN_KEY)
+    return accessToken
 }
 
 export function clearToken() {
-    localStorage.removeItem(TOKEN_KEY)
-}
-
-/**
- * Lê o `exp` do payload do JWT para não chamar a API com a sessão vencida.
- * Não valida a assinatura (isso é papel do backend): serve só para a UX.
- * Um token que não dá para decodificar conta como expirado.
- */
-export function isTokenExpired(token: string): boolean {
-    try {
-        const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
-        const { exp } = JSON.parse(atob(payload))
-        return typeof exp !== 'number' || exp * 1000 <= Date.now()
-    } catch {
-        return true
-    }
+    accessToken = null
 }

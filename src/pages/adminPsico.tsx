@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import LayoutPainel from '../components/LayoutPainel'
 
 type CrmCrpType = 'CRM' | 'CRP'
 type RiskLevel = 'GREEN' | 'YELLOW' | 'RED'
@@ -55,6 +56,18 @@ const riskOptions: { value: RiskLevel; label: string; color: string }[] = [
     { value: 'RED', label: 'Grave', color: 'bg-red-500' },
 ]
 
+// Mesmo selo e cartão dos contadores do Calendário
+function CardResumo({ titulo, valor }: { titulo: string; valor: number }) {
+    return (
+        <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+            <span className="inline-block bg-[#5271ff] text-white font-outfit text-sm font-medium px-3 py-0.5 rounded-md">
+                {titulo}
+            </span>
+            <p className="font-outfit text-4xl font-bold text-black mt-4">{valor}</p>
+        </div>
+    )
+}
+
 export default function AdminDashboard() {
     const [tab, setTab] = useState<'psychologists' | 'triages'>('psychologists')
     const [psychDecisions, setPsychDecisions] = useState<Record<number, DecisionStatus>>({})
@@ -73,156 +86,154 @@ export default function AdminDashboard() {
         setExpandedTriage(null)
     }
 
+    const tabClass = (ativa: boolean) =>
+        `px-4 py-2 rounded-lg font-outfit text-sm font-medium transition-colors ${
+            ativa ? 'bg-[#5271ff] text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+        }`
+
     return (
-        <div className="min-h-screen bg-white text-gray-900 font-sans">
-            {/* Topo */}
-            <header className="border-b border-indigo-100 px-6 py-4 flex items-center justify-between">
-                <span className="font-bold tracking-wider text-black text-xl uppercase">
-                    PLAD
-                </span>
-                <span className="text-sm text-gray-500">Painel do administrador</span>
-            </header>
+        // A barra lateral (com o menu da conta) e o rodapé vêm do LayoutPainel
+        <LayoutPainel>
+            <main className="flex-1 px-10 py-10">
+                <h1 className="font-outfit text-2xl font-bold text-black">Gestão</h1>
+                <p className="text-gray-500 text-sm mt-1 mb-8">Aprovações de psicólogos e revisão de triagens</p>
 
-            <main className="max-w-3xl mx-auto px-4 py-8">
-                {/* Stat cards */}
-                <div className="grid grid-cols-2 gap-3 mb-8">
-                    <div className="border border-indigo-200 rounded-lg px-4 py-3">
-                        <p className="text-xs text-gray-500">Psicólogos pendentes</p>
-                        <p className="text-2xl font-bold text-indigo-600">{pendingPsychCount}</p>
+                {/* Contadores */}
+                <section className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                    <CardResumo titulo="Psicólogos pendentes" valor={pendingPsychCount} />
+                    <CardResumo titulo="Triagens pendentes" valor={pendingTriageCount} />
+                </section>
+
+                <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100 border border-gray-100 p-8">
+                    {/* Abas */}
+                    <div className="flex flex-wrap gap-2 mb-6">
+                        <button
+                            type="button"
+                            aria-pressed={tab === 'psychologists'}
+                            onClick={() => setTab('psychologists')}
+                            className={tabClass(tab === 'psychologists')}
+                        >
+                            Aprovação de psicólogos
+                        </button>
+                        <button
+                            type="button"
+                            aria-pressed={tab === 'triages'}
+                            onClick={() => setTab('triages')}
+                            className={tabClass(tab === 'triages')}
+                        >
+                            Revisão de triagens
+                        </button>
                     </div>
-                    <div className="border border-indigo-200 rounded-lg px-4 py-3">
-                        <p className="text-xs text-gray-500">Triagens pendentes</p>
-                        <p className="text-2xl font-bold text-indigo-600">{pendingTriageCount}</p>
-                    </div>
-                </div>
 
-                {/* Tabs */}
-                <div className="flex gap-1 mb-6 border-b border-gray-200">
-                    <button
-                        onClick={() => setTab('psychologists')}
-                        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                            tab === 'psychologists'
-                                ? 'border-indigo-500 text-indigo-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
-                        }`}
-                    >
-                        Aprovação de psicólogos
-                    </button>
-                    <button
-                        onClick={() => setTab('triages')}
-                        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                            tab === 'triages'
-                                ? 'border-indigo-500 text-indigo-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
-                        }`}
-                    >
-                        Revisão de triagens
-                    </button>
-                </div>
-
-                {/* Aba: Psicólogos */}
-                {tab === 'psychologists' && (
-                    <div className="space-y-3">
-                        {mockPsychologists.map((psychologist) => {
-                            const status = psychDecisions[psychologist.id] ?? 'PENDING'
-                            return (
-                                <div
-                                    key={psychologist.id}
-                                    className="border border-indigo-200 rounded-lg px-4 py-3 flex items-center justify-between gap-4"
-                                >
-                                    <div>
-                                        <p className="text-sm font-semibold text-black">{psychologist.name}</p>
-                                        <p className="text-xs text-gray-500">
-                                            {psychologist.graduate} · {psychologist.credentialType} {psychologist.crmCrpNumber}
-                                        </p>
-                                    </div>
-
-                                    {status === 'PENDING' ? (
-                                        <div className="flex gap-2 shrink-0">
-                                            <button
-                                                onClick={() => handlePsychDecision(psychologist.id, 'APPROVED')}
-                                                className="px-3 py-1.5 rounded-md text-xs font-medium text-white bg-indigo-500 hover:bg-indigo-600 transition-colors"
-                                            >
-                                                Aprovar
-                                            </button>
-                                            <button
-                                                onClick={() => handlePsychDecision(psychologist.id, 'REJECTED')}
-                                                className="px-3 py-1.5 rounded-md text-xs font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors"
-                                            >
-                                                Rejeitar
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <span
-                                            className={`text-xs font-semibold shrink-0 ${
-                                                status === 'APPROVED' ? 'text-indigo-600' : 'text-gray-400'
-                                            }`}
-                                        >
-                                            {status === 'APPROVED' ? 'Aprovado' : 'Rejeitado'}
-                                        </span>
-                                    )}
-                                </div>
-                            )
-                        })}
-                    </div>
-                )}
-
-                {/* Aba: Triagens */}
-                {tab === 'triages' && (
-                    <div className="space-y-3">
-                        {mockTriages.map((triage) => {
-                            const risk = triageRisks[triage.id]
-                            const isExpanded = expandedTriage === triage.id
-                            const riskInfo = riskOptions.find((r) => r.value === risk)
-
-                            return (
-                                <div key={triage.id} className="border border-indigo-200 rounded-lg px-4 py-3">
-                                    <button
-                                        onClick={() => setExpandedTriage(isExpanded ? null : triage.id)}
-                                        className="w-full flex items-center justify-between gap-4 text-left"
+                    {/* Aba: Psicólogos */}
+                    {tab === 'psychologists' && (
+                        <div className="space-y-3">
+                            {mockPsychologists.map((psychologist) => {
+                                const status = psychDecisions[psychologist.id] ?? 'PENDING'
+                                return (
+                                    <div
+                                        key={psychologist.id}
+                                        className="border border-gray-200 rounded-2xl px-5 py-4 flex items-center justify-between gap-4"
                                     >
-                                        <p className="text-sm font-semibold text-black">{triage.patientName}</p>
-                                        {riskInfo ? (
-                                            <span className={`text-xs font-medium text-white px-2 py-1 rounded-md ${riskInfo.color}`}>
-                                                {riskInfo.label}
-                                            </span>
-                                        ) : (
-                                            <span className="text-xs text-gray-400">Não avaliado</span>
-                                        )}
-                                    </button>
-
-                                    {isExpanded && (
-                                        <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
-                                            <div className="space-y-2">
-                                                {triage.answers.map((answer) => (
-                                                    <div key={answer.id}>
-                                                        <p className="text-xs text-gray-500">{answer.questionText}</p>
-                                                        <p className="text-sm text-gray-800">{answer.valueResult}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-
-                                            <div className="flex gap-2">
-                                                {riskOptions.map((option) => (
-                                                    <button
-                                                        key={option.value}
-                                                        onClick={() => handleTriageRisk(triage.id, option.value)}
-                                                        className={`flex-1 py-1.5 rounded-md text-xs font-medium text-white transition ${option.color} ${
-                                                            risk === option.value ? 'ring-2 ring-offset-1 ring-indigo-500' : 'opacity-80 hover:opacity-100'
-                                                        }`}
-                                                    >
-                                                        {option.label}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                        <div>
+                                            <p className="font-outfit text-sm font-semibold text-black">{psychologist.name}</p>
+                                            <p className="text-xs text-gray-500">
+                                                {psychologist.graduate} · {psychologist.credentialType} {psychologist.crmCrpNumber}
+                                            </p>
                                         </div>
-                                    )}
-                                </div>
-                            )
-                        })}
-                    </div>
-                )}
+
+                                        {status === 'PENDING' ? (
+                                            <div className="flex gap-2 shrink-0">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handlePsychDecision(psychologist.id, 'APPROVED')}
+                                                    className="px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-[#5271ff] hover:bg-plad-hover transition-colors"
+                                                >
+                                                    Aprovar
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handlePsychDecision(psychologist.id, 'REJECTED')}
+                                                    className="px-4 py-1.5 rounded-lg text-xs font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors"
+                                                >
+                                                    Rejeitar
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <span
+                                                className={`text-xs font-semibold shrink-0 ${
+                                                    status === 'APPROVED' ? 'text-[#5271ff]' : 'text-gray-400'
+                                                }`}
+                                            >
+                                                {status === 'APPROVED' ? 'Aprovado' : 'Rejeitado'}
+                                            </span>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+
+                    {/* Aba: Triagens */}
+                    {tab === 'triages' && (
+                        <div className="space-y-3">
+                            {mockTriages.map((triage) => {
+                                const risk = triageRisks[triage.id]
+                                const isExpanded = expandedTriage === triage.id
+                                const riskInfo = riskOptions.find((r) => r.value === risk)
+
+                                return (
+                                    <div key={triage.id} className="border border-gray-200 rounded-2xl px-5 py-4">
+                                        <button
+                                            type="button"
+                                            aria-expanded={isExpanded}
+                                            onClick={() => setExpandedTriage(isExpanded ? null : triage.id)}
+                                            className="w-full flex items-center justify-between gap-4 text-left"
+                                        >
+                                            <p className="font-outfit text-sm font-semibold text-black">{triage.patientName}</p>
+                                            {riskInfo ? (
+                                                <span className={`text-xs font-medium text-white px-2 py-1 rounded-md ${riskInfo.color}`}>
+                                                    {riskInfo.label}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-gray-400">Não avaliado</span>
+                                            )}
+                                        </button>
+
+                                        {isExpanded && (
+                                            <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
+                                                <div className="space-y-2">
+                                                    {triage.answers.map((answer) => (
+                                                        <div key={answer.id}>
+                                                            <p className="text-xs text-gray-500">{answer.questionText}</p>
+                                                            <p className="text-sm text-gray-800">{answer.valueResult}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                <div className="flex gap-2">
+                                                    {riskOptions.map((option) => (
+                                                        <button
+                                                            type="button"
+                                                            key={option.value}
+                                                            onClick={() => handleTriageRisk(triage.id, option.value)}
+                                                            className={`flex-1 py-1.5 rounded-lg text-xs font-medium text-white transition ${option.color} ${
+                                                                risk === option.value ? 'ring-2 ring-offset-1 ring-[#5271ff]' : 'opacity-80 hover:opacity-100'
+                                                            }`}
+                                                        >
+                                                            {option.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+                </div>
             </main>
-        </div>
+        </LayoutPainel>
     )
 }
