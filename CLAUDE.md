@@ -66,7 +66,7 @@ The body is `{ code, message, timestamp, errors, trace }` (`ErrorResponseDTO`). 
 
 There is no `/reuniao`, so the "Reunião" item is disabled; unknown paths are the 404.
 
-`/adminPsico` and the `Calendario` meetings are not connected to the API: they **start empty** (with an `EstadoVazio`) and offer "Carregar dados demonstrativos", which loads clearly fictitious examples under a `FaixaDemonstrativa` ("dados demonstrativos (fictícios)") with a button to remove them. The sobriety counters of `Calendario` still show test values (`CONTADORES_TESTE`): leave them, F1/F4 redo them. Keep demo data out of the default state, and never show a dependent's real name in Gestão (only the nickname; real name is psychologist-only, backend decision 15). **There is no risk classification anywhere in the front** (backend decision 1, `docs/decisoes-para-revisao.md`): no low/moderate/high levels, no risk selector or badge, no "evaluated/not evaluated" state. A dependent who already sent the triage sees the current answers (from `GET /me/export`, the backend has no `GET /triage`) and updates them with `PUT /triage`.
+The `Calendario` meetings come from the API (`GET /meetings`, `src/api/meetings.ts`): on every month change it fetches from the first to the last day the grid shows (at most 42 days; the backend caps the window at 62), measured in `America/Sao_Paulo` (`inicioDoDiaEmSaoPaulo`), and shows the times in the browser's zone. Cancelled meetings are struck through and say "Reunião cancelada" in text; ended ones say "Reunião encerrada". A late response for a month already left is dropped. `/adminPsico` is still not connected to the API: it **starts empty** (with an `EstadoVazio`) and offers "Carregar dados demonstrativos", which loads clearly fictitious examples under a `FaixaDemonstrativa` ("dados demonstrativos (fictícios)") with a button to remove them. The sobriety counters of `Calendario` still show test values (`CONTADORES_TESTE`): leave them, F1/F4 redo them. Keep demo data out of the default state, and never show a dependent's real name in Gestão (only the nickname; real name is psychologist-only, backend decision 15). **There is no risk classification anywhere in the front** (backend decision 1, `docs/decisoes-para-revisao.md`): no low/moderate/high levels, no risk selector or badge, no "evaluated/not evaluated" state. A dependent who already sent the triage sees the current answers (from `GET /me/export`, the backend has no `GET /triage`) and updates them with `PUT /triage`.
 
 ### Triagem (health data)
 
@@ -208,7 +208,7 @@ src/
   main.tsx            StrictMode + <App/>
   App.tsx             BrowserRouter > ToastProvider > SessaoProvider > BannerConexao + Routes (RotaProtegida per role, 404 at *)
   index.css           Tailwind import + @theme tokens + base layer (focus, reduced motion)
-  api/                client.ts (apiRequest, ApiError), erros.ts (code → pt-BR), conexao.ts (offline state), token.ts, auth.ts, me.ts, triage.ts, consentimento.ts
+  api/                client.ts (apiRequest, ApiError), erros.ts (code → pt-BR), conexao.ts (offline state), token.ts, auth.ts, me.ts, triage.ts, consentimento.ts, meetings.ts
   session/            SessaoContext.ts (context, useSessao, destinoPorPapel), SessaoProvider.tsx
   components/         shared pieces (table above)
   pages/              one file per route: home, Login, criarConta (+ psicologoSolicita), Triagem, Calendario, adminPsico, minhaConta, naoEncontrada

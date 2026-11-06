@@ -9,6 +9,9 @@ export type ErrorCode =
     | 'INVALID_REGISTRATION'
     | 'INVALID_PASSWORD_CHANGE'
     | 'INVALID_TRIAGE'
+    | 'INVALID_MEETING'
+    | 'MEETING_NOT_FOUND'
+    | 'MEETING_CONFLICT'
     | 'CONSENT_REQUIRED'
     | 'UNAUTHORIZED'
     | 'INVALID_CREDENTIALS'
@@ -33,6 +36,10 @@ export const MENSAGENS_ERRO: Record<ErrorCode, string> = {
         'Não foi possível concluir o cadastro. Confira os dados profissionais: o número do registro pode já estar cadastrado.',
     INVALID_PASSWORD_CHANGE: 'A nova senha precisa ser diferente da atual.',
     INVALID_TRIAGE: 'Não foi possível registrar as respostas. Confira-as e tente novamente.',
+    INVALID_MEETING: 'Confira os dados da reunião.',
+    MEETING_NOT_FOUND: 'Essa reunião não existe mais.',
+    MEETING_CONFLICT:
+        'Isso não é possível agora: o horário cruza outra reunião sua, ou a reunião já começou, terminou ou foi cancelada.',
     CONSENT_REQUIRED:
         'Os Termos de Uso e a Política de Privacidade mudaram. Recarregue a página e aceite as versões em vigor.',
     UNAUTHORIZED: 'Sua sessão expirou. Entre novamente para continuar.',
@@ -128,6 +135,24 @@ const PADROES_CAMPO: { padrao: RegExp; texto: (m: RegExpMatchArray) => string }[
         },
     },
     { padrao: /must be (a )?(past|in the past)/i, texto: () => 'Informe uma data que já passou.' },
+    // Limites das reuniões (INVALID_MEETING, MeetingRules do backend)
+    {
+        padrao: /must be at least (\d+) minutes from now/i,
+        texto: (m) => `O início precisa ser pelo menos ${m[1]} minutos depois de agora.`,
+    },
+    { padrao: /must be after starts_at/i, texto: () => 'O fim precisa ser depois do início.' },
+    {
+        padrao: /must last at least (\d+) minutes/i,
+        texto: (m) => `A reunião precisa durar pelo menos ${m[1]} minutos.`,
+    },
+    {
+        padrao: /must last at most (\d+) minutes/i,
+        texto: (m) => `A reunião pode durar no máximo ${m[1]} minutos (${Number(m[1]) / 60} horas).`,
+    },
+    {
+        padrao: /^must be between (\d+) and (\d+)$/i,
+        texto: (m) => `Informe de ${m[1]} a ${m[2]} pessoas.`,
+    },
 ]
 
 export function traduzirErroDeCampo(message: string): string {
