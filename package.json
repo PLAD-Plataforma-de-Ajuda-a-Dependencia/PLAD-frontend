@@ -10,7 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@livekit/components-react": "^2.9.25",
+    "@livekit/components-styles": "^1.2.0",
     "date-fns": "^4.4.0",
+    "livekit-client": "^2.23.0",
     "lucide-react": "^1.48.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

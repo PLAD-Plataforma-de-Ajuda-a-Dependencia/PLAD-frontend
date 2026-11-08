@@ -1,10 +1,11 @@
-import { useCallback, useId, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useCallback, useId, useState, type FormEvent } from 'react'
 import { BadgeCheck, ClipboardList, Clock, Info, ScrollText, UserCheck, type LucideIcon } from 'lucide-react'
 import { listAdminPsychologists, listAdminTriages } from '../api/admin'
 import type { AdminPsychologistResponseDTO } from '../api/admin'
 import { ACOES_DE_AUDITORIA, listAudit } from '../api/auditoria'
 import type { AuditAction, AuditLogResponseDTO, FiltroDeAuditoria } from '../api/auditoria'
 import type { PageResponseDTO } from '../api/pagina'
+import Abas from '../components/Abas'
 import AvisoDeAcesso from '../components/AvisoDeAcesso'
 import Botao from '../components/Botao'
 import Campo from '../components/Campo'
@@ -62,20 +63,6 @@ export default function AdminPsico() {
         setVisitadas((atual) => new Set(atual).add(id))
     }
 
-    // Abas com o padrão do WAI-ARIA: setas, Home e End movem entre elas
-    const aoTeclar = (e: KeyboardEvent<HTMLDivElement>) => {
-        const indice = ABAS.findIndex((aba) => aba.id === ativa)
-        let novo: number
-        if (e.key === 'ArrowRight') novo = (indice + 1) % ABAS.length
-        else if (e.key === 'ArrowLeft') novo = (indice - 1 + ABAS.length) % ABAS.length
-        else if (e.key === 'Home') novo = 0
-        else if (e.key === 'End') novo = ABAS.length - 1
-        else return
-        e.preventDefault()
-        escolher(ABAS[novo].id)
-        document.getElementById(`${idBase}-aba-${ABAS[novo].id}`)?.focus()
-    }
-
     return (
         // A barra lateral (com o menu da conta) e o rodapé vêm do LayoutPainel
         <LayoutPainel titulo="Gestão">
@@ -85,37 +72,14 @@ export default function AdminPsico() {
                     Triagens recebidas, psicólogos cadastrados e o registro de quem acessou os dados.
                 </p>
 
-                <div
-                    role="tablist"
-                    aria-label="Seções da gestão"
-                    onKeyDown={aoTeclar}
-                    className="mb-6 flex border-b border-borda-cartao"
-                >
-                    {ABAS.map((aba) => {
-                        const Icone = aba.icone
-                        const selecionada = ativa === aba.id
-                        return (
-                            <button
-                                key={aba.id}
-                                type="button"
-                                role="tab"
-                                id={`${idBase}-aba-${aba.id}`}
-                                aria-selected={selecionada}
-                                aria-controls={`${idBase}-painel-${aba.id}`}
-                                tabIndex={selecionada ? 0 : -1}
-                                onClick={() => escolher(aba.id)}
-                                className={`-mb-px flex min-h-11 flex-1 items-center justify-center gap-1.5 border-b-2 px-2 py-2 font-outfit text-sm font-medium transition-colors sm:flex-none sm:gap-2 sm:px-6 sm:text-base ${
-                                    selecionada
-                                        ? 'border-plad text-plad-active'
-                                        : 'border-transparent text-texto-suave hover:text-black'
-                                }`}
-                            >
-                                <Icone size={18} aria-hidden="true" />
-                                {aba.rotulo}
-                            </button>
-                        )
-                    })}
-                </div>
+                <Abas
+                    rotulo="Seções da gestão"
+                    abas={ABAS}
+                    ativa={ativa}
+                    onEscolher={escolher}
+                    idBase={idBase}
+                    className="mb-6"
+                />
 
                 {ABAS.map(
                     (aba) =>

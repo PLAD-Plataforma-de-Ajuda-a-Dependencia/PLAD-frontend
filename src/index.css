@@ -27,6 +27,11 @@
     --color-borda-suave: #dce6ff;
     --color-texto-suave: #4b5563;
 
+    /* Sala ao vivo (frame /reuniao-2, lido pela imagem colada no chat): valores ESTIMADOS, não medidos por pixel */
+    --color-sala-fundo: #121212;
+    --color-sala-barra: #1e1e1e;
+    --color-sala-botao: #2f3032;
+
     /* Estados: erro de verdade, aviso (sem conexão, em breve) e sucesso */
     --color-erro: #b91c1c;
     --color-erro-hover: #991b1b;
