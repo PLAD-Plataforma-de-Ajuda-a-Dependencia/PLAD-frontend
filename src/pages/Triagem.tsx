@@ -1,18 +1,18 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, CircleCheck } from 'lucide-react'
 import { ApiError, getErrorMessage } from '../api/client'
 import { exportMyData } from '../api/me'
 import { FREE_TEXT_MAX_LENGTH, getQuestions, resubmitTriage, submitTriage } from '../api/triage'
 import type { QuestionResponseDTO, TriageRequestDTO } from '../api/triage'
 import Botao from '../components/Botao'
+import CartaoAjudaAgora from '../components/CartaoAjudaAgora'
 import Carregando from '../components/Carregando'
 import EstadoErro from '../components/EstadoErro'
 import LayoutPagina from '../components/LayoutPagina'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import { useToast } from '../components/ToastContext'
 import { classeBotao } from '../components/estilos'
-import useContagem from '../components/useContagem'
 import { useSessao } from '../session/SessaoContext'
 
 /**
@@ -88,15 +88,19 @@ export default function Triagem() {
     // O POST devolveu 409: já existe triagem, e a tela oferece substituí-la via PUT
     const [alreadySubmitted, setAlreadySubmitted] = useState(false)
     const [confirmandoSubstituir, setConfirmandoSubstituir] = useState(false)
+    // O envio deu 400 CONSENT_REQUIRED: a tela mostra como aceitar sem perder o que foi respondido
+    const [consentimentoFaltando, setConsentimentoFaltando] = useState(false)
     // 'nenhuma' = o POST respondeu 204: nenhuma pergunta respondida, nada guardado
     const [result, setResult] = useState<'submitted' | 'resubmitted' | 'nenhuma' | null>(null)
     const tituloRef = useRef<HTMLHeadingElement>(null)
     const idTitulo = useId()
-    // Depois de enviar (ou atualizar), a tela leva sozinha ao painel em 5 segundos; o botão continua valendo
-    const [redirecionar, setRedirecionar] = useState(false)
-    const { restante, iniciar } = useContagem()
+
+    // Dado de saúde (LGPD art. 11, I): antes de qualquer pergunta vem o consentimento, em tela própria. Enquanto ele
+    // está pendente nada é lido nem mostrado aqui; ao aceitar, a tela de lá volta a /Triagem
+    const consentimentoPendente = me?.health_consent_pending === true
 
     useEffect(() => {
+        if (consentimentoPendente) return
         // Sem sessão, a RotaProtegida já mandou para o login
         let ignore = false
         const carregar = async () => {
@@ -121,7 +125,7 @@ export default function Triagem() {
         return () => {
             ignore = true
         }
-    }, [modoEdicao, tentativa])
+    }, [modoEdicao, tentativa, consentimentoPendente])
 
     // O passo vem da URL. Ausente ou fora de 1..N, é corrigido com `replace`, sem abrir uma entrada no histórico
     const total = questions?.length ?? 0
@@ -139,10 +143,6 @@ export default function Triagem() {
         if (questions) tituloRef.current?.focus()
     }, [passo, questions])
 
-    useEffect(() => {
-        if (redirecionar && restante === 0) navigate('/Calendario', { replace: true })
-    }, [redirecionar, restante, navigate])
-
     // Respostas só na memória: se a aba for recarregada ou fechada, o navegador pergunta antes
     useEffect(() => {
         if (!alterou || result) return
@@ -150,6 +150,10 @@ export default function Triagem() {
         window.addEventListener('beforeunload', avisarAntes)
         return () => window.removeEventListener('beforeunload', avisarAntes)
     }, [alterou, result])
+
+    if (consentimentoPendente) {
+        return <Navigate to="/consentimento-saude" replace state={{ de: '/Triagem' }} />
+    }
 
     if (loadError) {
         return (
@@ -190,21 +194,18 @@ export default function Triagem() {
         }
         setSending(true)
         setError(null)
+        setConsentimentoFaltando(false)
         try {
             if (resubmit) {
                 await resubmitTriage(request)
                 setResult('resubmitted')
                 avisar('Respostas atualizadas.')
-                setRedirecionar(true)
-                iniciar(5)
             } else {
                 const triagem = await submitTriage(request)
                 if (triagem) {
                     atualizarMe({ has_triage: true })
                     setResult('submitted')
                     avisar('Triagem enviada. Obrigado por responder!')
-                    setRedirecionar(true)
-                    iniciar(5)
                 } else {
                     // 204: nada foi guardado, então has_triage continua falso e dá para responder depois
                     setResult('nenhuma')
@@ -219,6 +220,13 @@ export default function Triagem() {
                 // O backend já tinha uma triagem que o `me` não mostrava: alinha o estado e oferece substituir
                 atualizarMe({ has_triage: true })
                 setAlreadySubmitted(true)
+            } else if (err instanceof ApiError && err.code === 'CONSENT_REQUIRED') {
+                // O consentimento de saúde mudou de versão (ou foi aceito em outra sessão e o `me` ficou velho). As
+                // respostas só existem nesta página, então ela não sai daqui: o aceite é feito em outra aba e o envio
+                // é repetido (ver `avisoDeConsentimento` abaixo)
+                setError('Falta o seu consentimento para tratar dados de saúde.')
+                setConsentimentoFaltando(true)
+                setConfirmandoSubstituir(false)
             } else {
                 setError(getErrorMessage(err, 'Não foi possível enviar a triagem.'))
                 setConfirmandoSubstituir(false)
@@ -267,11 +275,11 @@ export default function Triagem() {
                         {titulo}
                     </h1>
                     <p className="max-w-sm text-sm text-texto-suave">{texto}</p>
-                    {redirecionar && (
-                        <p className="text-sm text-texto-suave">
-                            Você será levado ao painel em {restante} {restante === 1 ? 'segundo' : 'segundos'}.
-                        </p>
-                    )}
+                </div>
+                {/* Quem acabou de contar como está pode precisar de ajuda agora: só informação, sem classificar nada. Por isso a
+                    tela não leva sozinha ao painel (antes levava em 5 s): ninguém é tirado dela no meio da leitura */}
+                <div className="mt-8">
+                    <CartaoAjudaAgora />
                 </div>
             </LayoutPagina>
         )
@@ -397,9 +405,20 @@ export default function Triagem() {
             largura="larga"
             acoes={
                 <>
-                    {error && (
+                    {error && !consentimentoFaltando && (
                         <p role="alert" className="text-center text-sm text-erro">
                             {error}
+                        </p>
+                    )}
+                    {/* Aviso calmo, não erro: nada deu errado, só falta um aceite. As respostas ficam nesta página, então o
+                        aceite vai para outra aba e o envio é repetido aqui */}
+                    {consentimentoFaltando && (
+                        <p role="alert" className="rounded-campo border border-aviso-borda bg-aviso-fundo p-3 text-center text-sm text-aviso">
+                            Falta o seu consentimento para tratar dados de saúde. Suas respostas continuam aqui.{' '}
+                            <a href="/consentimento-saude" target="_blank" rel="noreferrer" className="font-semibold underline">
+                                Aceitar em outra aba<span className="sr-only"> (abre em outra aba)</span>
+                            </a>
+                            , depois volte e envie de novo.
                         </p>
                     )}
                     <Botao bloco carregando={sending} onClick={goNext}>

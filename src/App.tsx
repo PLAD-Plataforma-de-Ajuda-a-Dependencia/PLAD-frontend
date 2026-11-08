@@ -7,9 +7,13 @@ import AdminPsico from './pages/adminPsico'
 import Triagem from './pages/Triagem'
 import Triagens from './pages/triagens'
 import Calendario from './pages/Calendario'
+import ComoProtegemos from './pages/comoProtegemos'
+import ConsentimentoSaude from './pages/consentimentoSaude'
 import MinhaConta from './pages/minhaConta'
 import MinhasReunioes from './pages/minhasReunioes'
 import NaoEncontrada from './pages/naoEncontrada'
+import Privacidade from './pages/privacidade'
+import Termos from './pages/termos'
 import BannerConexao from './components/BannerConexao'
 import Carregando from './components/Carregando'
 import RotaProtegida from './components/RotaProtegida'
@@ -30,6 +34,10 @@ export default function App() {
                         {/* O cadastro de psicólogo é a segunda etapa de /criar-conta (?etapa=2), sem rota própria */}
                         <Route path="/criar-conta" element={<CriarConta />} />
                         <Route path="/login" element={<Login />} />
+                        {/* Documentos públicos (sem login): abrem em outra aba a partir do cadastro e do pop-up de consentimento */}
+                        <Route path="/termos" element={<Termos />} />
+                        <Route path="/privacidade" element={<Privacidade />} />
+                        <Route path="/como-protegemos" element={<ComoProtegemos />} />
                         {/* Qualquer papel logado */}
                         <Route element={<RotaProtegida />}>
                             <Route path="/minha-conta" element={<MinhaConta />} />
@@ -37,6 +45,8 @@ export default function App() {
                         {/* Psicólogo e admin não abrem a triagem */}
                         <Route element={<RotaProtegida papeis={['dependente']} />}>
                             <Route path="/Triagem" element={<Triagem />} />
+                            {/* O consentimento para tratar dado de saúde: a triagem e a inscrição em reunião mandam para cá */}
+                            <Route path="/consentimento-saude" element={<ConsentimentoSaude />} />
                             <Route path="/minhas-reunioes" element={<MinhasReunioes />} />
                         </Route>
                         <Route element={<RotaProtegida papeis={['dependente', 'psicologo']} />}>

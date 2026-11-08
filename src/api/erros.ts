@@ -51,7 +51,7 @@ export const MENSAGENS_ERRO: Record<ErrorCode, string> = {
     MEETING_NOT_OPEN: 'A sala dessa reunião não está aberta agora.',
     MEETING_PARTICIPANT_NOT_FOUND: 'Essa pessoa não está conectada à sala agora.',
     CONSENT_REQUIRED:
-        'Os Termos de Uso e a Política de Privacidade mudaram. Recarregue a página e aceite as versões em vigor.',
+        'Falta um aceite para continuar, ou o texto que você aceitou mudou. Recarregue a página e confira os avisos antes de tentar de novo.',
     UNAUTHORIZED: 'Sua sessão expirou. Entre novamente para continuar.',
     INVALID_CREDENTIALS: 'E-mail ou senha incorretos.',
     INVALID_REFRESH_TOKEN: 'Sua sessão expirou. Entre novamente para continuar.',

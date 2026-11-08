@@ -138,13 +138,19 @@ export function mensagemDeInscricao(erro: unknown): string {
     return 'Algo deu errado. Tente novamente em instantes.'
 }
 
+/** plad.dto.MeetingRegistrationRequestDTO: a versão do termo de participação que a pessoa viu e aceitou */
+export interface MeetingRegistrationRequestDTO {
+    accepted_participation_version: string
+}
+
 /**
  * POST /meetings/{id}/registration → 200 com a reunião atualizada (só dependente; a triagem não é exigida). Inscrever de novo
- * também dá 200, mesmo com a reunião cheia | 403 (não é dependente) | 404 | 409 MEETING_FULL (sem vaga) ou MEETING_CONFLICT
- * (não está agendada, ou já começou)
+ * também dá 200, mesmo com a reunião cheia | 400 CONSENT_REQUIRED (falta o consentimento de saúde, ou a versão do termo de
+ * participação não é a em vigor; nada é gravado) | 403 (não é dependente) | 404 | 409 MEETING_FULL (sem vaga) ou
+ * MEETING_CONFLICT (não está agendada, ou já começou). O aceite do termo é gravado junto com a vaga
  */
-export function registerForMeeting(id: number) {
-    return apiRequest<MeetingResponseDTO>('POST', `/meetings/${id}/registration`)
+export function registerForMeeting(id: number, data: MeetingRegistrationRequestDTO) {
+    return apiRequest<MeetingResponseDTO>('POST', `/meetings/${id}/registration`, data)
 }
 
 /** DELETE /meetings/{id}/registration → 204, também para quem não estava inscrito | 403 | 404 | 409 MEETING_CONFLICT (já começou) */

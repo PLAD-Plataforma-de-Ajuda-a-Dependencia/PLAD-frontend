@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import AjudaAgora from '../components/AjudaAgora'
 import Rodape from '../components/Rodape'
 import useTitulo from '../components/useTitulo'
 
@@ -17,6 +18,9 @@ export default function Home() {
 
     return (
         <div className="min-h-screen w-full bg-plad-fundo font-roboto text-slate-900">
+            {/* "Precisa de ajuda agora?" fixo na home também: quem chega aqui em crise não precisa criar conta para achar ajuda */}
+            <AjudaAgora posicao="fixed bottom-4 right-4 z-40 md:bottom-6 md:right-6" />
+
             {/* Navbar + Hero: fundo lilás com os brilhos em gradiente do Figma (roxo no topo esquerdo, azul no canto inferior direito) */}
             <div
                 style={{

@@ -4,7 +4,9 @@ import { getErrorMessage } from '../api/client'
 import { ACEITE_VIGENTE, DOCUMENTOS } from '../api/consentimento'
 import { acceptConsents } from '../api/me'
 import { useSessao } from '../session/SessaoContext'
+import AjudaAgora from './AjudaAgora'
 import Botao from './Botao'
+import LinkDocumento from './LinkDocumento'
 import ModalConfirmacao from './ModalConfirmacao'
 import { useToast } from './ToastContext'
 
@@ -44,6 +46,8 @@ export default function ModalConsentimento() {
 
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-white/30 font-roboto backdrop-blur-md">
+            {/* A página fica inerte e coberta enquanto o aceite está pendente: o botão de ajuda precisa continuar à mão */}
+            <AjudaAgora posicao="fixed right-3 top-3" />
             <div
                 role="dialog"
                 aria-modal="true"
@@ -57,22 +61,18 @@ export default function ModalConsentimento() {
                         TERMOS E CONDIÇÕES
                     </h2>
 
-                    {/* Os textos ainda não existem: cada documento diz isso com calma, sem esconder */}
+                    {/* Cada documento abre na sua página, em outra aba (se o texto ainda não chegou, a página diz isso) */}
                     <div
                         tabIndex={0}
-                        aria-label="Texto dos termos e da política"
+                        aria-label="Documentos para ler antes de aceitar"
                         className="mt-6 flex-1 space-y-5 overflow-y-auto pr-2 text-sm text-gray-700"
                     >
-                        {Object.values(DOCUMENTOS).map(({ titulo, href }) => (
-                            <section key={titulo}>
-                                <h3 className="font-semibold text-black">{titulo}</h3>
-                                {href ? (
-                                    <a href={href} target="_blank" rel="noreferrer" className="text-plad underline hover:text-plad-hover">
-                                        Ler {titulo}
-                                    </a>
-                                ) : (
-                                    <p className="mt-1">O texto de {titulo} está em preparação e ainda não pode ser lido aqui.</p>
-                                )}
+                        {(['termos', 'privacidade', 'protecao'] as const).map((documento) => (
+                            <section key={documento}>
+                                <h3 className="font-semibold text-black">{DOCUMENTOS[documento].titulo}</h3>
+                                <p className="mt-1">
+                                    <LinkDocumento documento={documento} />
+                                </p>
                             </section>
                         ))}
                     </div>

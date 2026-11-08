@@ -4,6 +4,7 @@ import { ClipboardCheck, ClipboardList, House, Video, type LucideIcon } from 'lu
 // CalendarDays e Users voltam quando as páginas Calendário e Comunidade existirem
 import type { UserType } from '../api/auth'
 import { useSessao } from '../session/SessaoContext'
+import AjudaAgora from './AjudaAgora'
 import MenuConta from './MenuConta'
 import Rodape from './Rodape'
 import useTitulo from './useTitulo'
@@ -55,6 +56,9 @@ export default function LayoutPainel({ titulo, children }: { titulo?: string; ch
             >
                 Pular para o conteúdo
             </a>
+
+            {/* "Precisa de ajuda agora?" fixo em toda tela logada; no celular fica acima da barra de navegação (h-16) */}
+            <AjudaAgora posicao="fixed bottom-20 right-3 z-40 md:bottom-6 md:right-6" />
 
             <div className="flex flex-1">
                 {/* Sidebar (a partir de md), direto sobre o lilás: a coluna acompanha a página inteira e o conteúdo dela

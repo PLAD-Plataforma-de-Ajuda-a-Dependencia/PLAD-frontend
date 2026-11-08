@@ -24,6 +24,9 @@ export interface MeResponseDTO {
     is_validated: boolean | null
     // true enquanto os Termos e a Política em vigor não foram aceitos (POST /me/consents); vale para todos os tipos
     consent_pending: boolean
+    // só dependente (null nos outros): true enquanto o consentimento para tratar dado de saúde, na versão em vigor, não
+    // foi aceito (POST /me/consents/health). Sem ele, POST e PUT /triage e a inscrição em reunião dão 400 CONSENT_REQUIRED
+    health_consent_pending: boolean | null
 }
 
 /** plad.dto.NicknameResponseDTO */
@@ -35,6 +38,11 @@ export interface NicknameResponseDTO {
 export interface ConsentRequestDTO {
     accepted_terms_version: string
     accepted_privacy_version: string
+}
+
+/** plad.dto.HealthConsentRequestDTO */
+export interface HealthConsentRequestDTO {
+    accepted_health_version: string
 }
 
 /** plad.dto.ChangePasswordRequestDTO */
@@ -91,7 +99,7 @@ export interface MeExportPsychologistDTO {
     validated_at: string | null
 }
 
-/** plad.dto.MeExportConsentDTO */
+/** plad.dto.MeExportConsentDTO. `document`: terms, privacy, health ou participation */
 export interface MeExportConsentDTO {
     document: string
     version: string
@@ -140,6 +148,14 @@ export function rerollNickname() {
 /** POST /me/consents → 204 | 400 CONSENT_REQUIRED (versão diferente da em vigor) */
 export function acceptConsents(data: ConsentRequestDTO) {
     return apiRequest<void>('POST', '/me/consents', data)
+}
+
+/**
+ * POST /me/consents/health → 204 (também se já estava aceito) | 400 CONSENT_REQUIRED (versão diferente da em vigor) |
+ * 403 (só dependente). Passo próprio, antes da primeira triagem: não faz parte do cadastro
+ */
+export function acceptHealthConsent(data: HealthConsentRequestDTO) {
+    return apiRequest<void>('POST', '/me/consents/health', data)
 }
 
 /**

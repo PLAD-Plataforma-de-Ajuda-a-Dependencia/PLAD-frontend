@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import AjudaAgora from './AjudaAgora'
 import useTitulo from './useTitulo'
 
 type Largura = 'estreita' | 'media' | 'larga'
@@ -36,6 +37,8 @@ export default function LayoutPagina({ titulo, acoes, largura = 'media', central
             >
                 Pular para o conteúdo
             </a>
+            {/* "Precisa de ajuda agora?" em toda tela de fluxo, logada ou não: no alto, longe do rodapé fixo de ações */}
+            <AjudaAgora posicao="fixed right-3 top-3 z-40" />
             <header className="pb-4 pt-8 text-center">
                 <span className="font-roboto text-xl font-bold text-black">PLAD</span>
             </header>

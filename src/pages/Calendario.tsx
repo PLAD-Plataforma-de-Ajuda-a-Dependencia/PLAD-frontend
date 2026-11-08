@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
     addDays,
     addMonths,
@@ -41,6 +41,7 @@ import {
 } from 'lucide-react'
 
 import { ApiError, errosPorCampo } from '../api/client'
+import { ACEITE_DE_PARTICIPACAO_VIGENTE } from '../api/consentimento'
 import {
     aberturaDaSala,
     cancelMeeting,
@@ -67,6 +68,7 @@ import EstadoErro from '../components/EstadoErro'
 import EstadoVazio from '../components/EstadoVazio'
 import LayoutPainel from '../components/LayoutPainel'
 import ModalConfirmacao from '../components/ModalConfirmacao'
+import TermoDeParticipacao from '../components/TermoDeParticipacao'
 import { useToast } from '../components/ToastContext'
 import useAgora from '../components/useAgora'
 import { formatarRegistro } from '../components/formatar'
@@ -227,8 +229,10 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
     }
 
     // O backend é quem garante o acesso (403 para quem não é psicólogo); aqui é só para não mostrar botões inúteis
-    const ehPsicologo = useSessao().me?.type_user === 'psicologo'
-    const ehDependente = useSessao().me?.type_user === 'dependente'
+    const { me, recarregarMe } = useSessao()
+    const navigate = useNavigate()
+    const ehPsicologo = me?.type_user === 'psicologo'
+    const ehDependente = me?.type_user === 'dependente'
     // Um dia que já passou não recebe reunião nova (o início precisa ser daqui a pelo menos 60 minutos)
     const podeCriarNoDia = (dia: Date) => ehPsicologo && !isBefore(dia, startOfDay(new Date()))
 
@@ -289,6 +293,8 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
     // Inscrição (dependente): o popup troca de estado com a reunião que a API devolve, sem buscar o mês inteiro de novo
     const [inscricaoEmCurso, setInscricaoEmCurso] = useState<string | null>(null) // id da reunião que está sendo alterada
     const [inscricaoACancelar, setInscricaoACancelar] = useState<Reuniao | null>(null)
+    // A reunião cujo termo de participação está aberto, à espera do aceite
+    const [termoDaReuniao, setTermoDaReuniao] = useState<Reuniao | null>(null)
 
     function substituirReuniao(atualizada: MeetingResponseDTO) {
         setCarga(
@@ -309,15 +315,40 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
         }
     }
 
-    async function inscrever(reuniao: Reuniao) {
+    // "Inscrever-se" não inscreve ainda. Primeiro vem o consentimento para tratar dado de saúde, em tela própria (o
+    // backend recusa a inscrição sem ele), e depois o termo de participação, que se aceita a cada inscrição
+    function pedirInscricao(reuniao: Reuniao) {
         if (inscricaoEmCurso) return
+        if (me?.health_consent_pending) {
+            irParaConsentimentoDeSaude()
+            return
+        }
+        setTermoDaReuniao(reuniao)
+    }
+
+    function irParaConsentimentoDeSaude() {
+        navigate('/consentimento-saude', { state: { de: '/Calendario' } })
+    }
+
+    async function confirmarInscricao() {
+        if (!termoDaReuniao || inscricaoEmCurso) return
+        const reuniao = termoDaReuniao
         setInscricaoEmCurso(reuniao.id)
         try {
-            substituirReuniao(await registerForMeeting(Number(reuniao.id)))
+            substituirReuniao(await registerForMeeting(Number(reuniao.id), ACEITE_DE_PARTICIPACAO_VIGENTE))
+            setTermoDaReuniao(null)
             avisar('Inscrição feita.', 'sucesso')
         } catch (erro) {
-            avisar(mensagemDeInscricao(erro), 'erro')
-            await atualizarReuniao(reuniao.id)
+            setTermoDaReuniao(null)
+            if (erro instanceof ApiError && erro.code === 'CONSENT_REQUIRED') {
+                // Falta o consentimento de saúde (o `me` estava velho) ou o termo mudou de versão: o `me` diz qual dos dois
+                const atual = await recarregarMe().catch(() => null)
+                if (atual?.health_consent_pending) irParaConsentimentoDeSaude()
+                else avisar(mensagemDeInscricao(erro), 'erro')
+            } else {
+                avisar(mensagemDeInscricao(erro), 'erro')
+                await atualizarReuniao(reuniao.id)
+            }
         } finally {
             setInscricaoEmCurso(null)
         }
@@ -518,7 +549,7 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
                                                     onEncerrar={(r) => setAcaoPendente({ tipo: 'encerrar', reuniao: r })}
                                                     ehDependente={ehDependente}
                                                     inscricaoEmCurso={inscricaoEmCurso}
-                                                    onInscrever={inscrever}
+                                                    onInscrever={pedirInscricao}
                                                     onCancelarInscricao={setInscricaoACancelar}
                                                 />
                                             )}
@@ -557,6 +588,19 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
                 onConfirmar={confirmarAcao}
                 onCancelar={() => setAcaoPendente(null)}
             />
+
+            {/* Termo de participação: a inscrição só é enviada depois do aceite, com a versão do termo */}
+            {termoDaReuniao && (
+                <TermoDeParticipacao
+                    titulo={termoDaReuniao.titulo}
+                    quando={`${capitalizar(format(parseISO(termoDaReuniao.data), "EEEE, d 'de' MMMM", { locale: ptBR }))} · ${termoDaReuniao.horaInicio} - ${termoDaReuniao.horaFim}`}
+                    anfitriao={termoDaReuniao.responsavel}
+                    registro={termoDaReuniao.registro}
+                    enviando={inscricaoEmCurso !== null}
+                    onAceitar={() => void confirmarInscricao()}
+                    onVoltar={() => setTermoDaReuniao(null)}
+                />
+            )}
 
             {/* Cancelar a inscrição pode custar a vaga (se a reunião lotar, não dá para voltar): pede confirmação, sem o vermelho */}
             <ModalConfirmacao

@@ -10,6 +10,7 @@ import { CalendarDays, DoorOpen, Heart } from 'lucide-react'
 import { ApiError } from '../api/client'
 import { aberturaDaSala, getMeeting, listParticipants, podeEntrar } from '../api/meetings'
 import type { MeetingParticipantDTO, MeetingResponseDTO } from '../api/meetings'
+import AjudaAgora from '../components/AjudaAgora'
 import Botao from '../components/Botao'
 import Carregando from '../components/Carregando'
 import EstadoErro from '../components/EstadoErro'
@@ -599,6 +600,11 @@ export default function Reuniao() {
             >
                 Pular para o conteúdo
             </a>
+            {/* "Precisa de ajuda agora?" na sala: numa faixa fixa no alto, para não cobrir o palco nem os controles. Só abre o
+                diálogo; a chamada segue conectada */}
+            <div className="sticky top-0 z-40 flex justify-end bg-sala-fundo px-4 py-2">
+                <AjudaAgora posicao="relative" tema="escuro" />
+            </div>
             <main id="conteudo" tabIndex={-1} className="flex min-w-0 flex-1 flex-col focus:outline-none">
                 {naSala ? (
                     conteudo()
