@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ClipboardList, House, Video, type LucideIcon } from 'lucide-react'
+import { ClipboardCheck, ClipboardList, House, Video, type LucideIcon } from 'lucide-react'
 // CalendarDays e Users voltam quando as páginas Calendário e Comunidade existirem
 import type { UserType } from '../api/auth'
 import { useSessao } from '../session/SessaoContext'
@@ -9,7 +9,7 @@ import Rodape from './Rodape'
 import useTitulo from './useTitulo'
 
 /**
- * Casca das páginas com navegação (Calendário e Gestão), como no Figma: a página inteira é lilás (`plad-fundo`), a
+ * Casca das páginas com navegação (Calendário, Triagens e Gestão), como no Figma: a página inteira é lilás (`plad-fundo`), a
  * sidebar fica direto sobre ela (sem coluna branca) e o conteúdo vai num painel branco arredondado, com o rodapé
  * embaixo. No celular (abaixo de `md`) a sidebar vira a barra fixa na parte de baixo, com alvos de pelo menos 44 px.
  * A página entrega o seu `<main id="conteudo" className="min-w-0 ...">` como `children`; o painel branco é daqui.
@@ -26,15 +26,16 @@ interface ItemBarra {
 }
 
 const PAINEL: ItemBarra = { to: '/Calendario', label: 'Painel', icone: House, cheio: true }
-// A página "Reunião" (Minhas reuniões) é do dependente; para o psicólogo o item continua "em breve", sem página
-const REUNIAO: ItemBarra = { label: 'Reunião', icone: Video }
 const REUNIAO_DO_DEPENDENTE: ItemBarra = { to: '/minhas-reunioes', label: 'Reunião', icone: Video }
+// Triagens recebidas: do psicólogo (lê com o nome real). A Gestão é do admin: as rotas /admin/* respondem 403 aos outros
+const TRIAGENS: ItemBarra = { to: '/triagens', label: 'Triagens', icone: ClipboardCheck }
 const GESTAO: ItemBarra = { to: '/adminPsico', label: 'Gestão', icone: ClipboardList }
 
-// O Calendário mostra os contadores de sobriedade do dependente, então o admin só tem a Gestão
+// Cada papel vê só o que consegue abrir. O Calendário mostra os contadores de sobriedade do dependente, então o admin só
+// tem a Gestão. O psicólogo não tem "Reunião" porque não há página para ele: um item desabilitado não ajuda ninguém
 const ITENS_POR_PAPEL: Record<UserType, ItemBarra[]> = {
     dependente: [PAINEL, REUNIAO_DO_DEPENDENTE],
-    psicologo: [PAINEL, REUNIAO, GESTAO],
+    psicologo: [PAINEL, TRIAGENS],
     admin: [GESTAO],
 }
 

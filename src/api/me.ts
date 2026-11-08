@@ -1,6 +1,9 @@
 import { apiRequest } from './client'
 import type { CrmCrpType, LoginResponseDTO, Sex, UserType } from './auth'
 import type { AnswerResponseDTO } from './triage'
+import type { AuditAction } from './auditoria'
+import { montarQuery } from './pagina'
+import type { PageResponseDTO } from './pagina'
 
 // Rotas /me do backend (MeController). Todas exigem o access token; o usuário vem sempre do token, nunca do corpo.
 
@@ -114,6 +117,16 @@ export interface MeExportResponseDTO {
     triage: MeExportTriageDTO | null
 }
 
+/**
+ * plad.dto.AccessLogEntryDTO: uma vez em que um TERCEIRO leu dado do dependente. Mostra quando, o quê e em qual papel; nunca
+ * quem (LGPD art. 18): o backend não manda nome, id nem e-mail de quem leu.
+ */
+export interface AccessLogEntryDTO {
+    occurred_at: string // Instant em ISO-8601 (UTC)
+    action: AuditAction // hoje TRIAGE_VIEWED ou MEETING_PARTICIPANTS_VIEWED
+    actor_role: string | null // 'psicologo' ou 'admin'; null se o papel não foi registrado
+}
+
 /** GET /me → 200 | 401 */
 export function getMe() {
     return apiRequest<MeResponseDTO>('GET', '/me')
@@ -140,6 +153,14 @@ export function changePassword(data: ChangePasswordRequestDTO) {
 /** GET /me/export → 200: tudo o que a plataforma guarda sobre o usuário (LGPD art. 18) */
 export function exportMyData() {
     return apiRequest<MeExportResponseDTO>('GET', '/me/export')
+}
+
+/**
+ * GET /me/access-log?page=&size= → 200: mais recente primeiro; size de 1 a 100 (padrão 20) | 400 | 403 (só dependente).
+ * Ler o próprio log não grava auditoria.
+ */
+export function getAccessLog(page: number, size: number) {
+    return apiRequest<PageResponseDTO<AccessLogEntryDTO>>('GET', `/me/access-log${montarQuery({ page, size })}`)
 }
 
 /** DELETE /me → 204 | 401 INVALID_CREDENTIALS (senha errada) | 403 (admin não se exclui) | 429. Não tem volta */

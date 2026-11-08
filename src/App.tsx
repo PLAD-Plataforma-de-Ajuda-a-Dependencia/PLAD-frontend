@@ -4,6 +4,7 @@ import CriarConta from './pages/criarConta'
 import Login from './pages/Login'
 import AdminPsico from './pages/adminPsico'
 import Triagem from './pages/Triagem'
+import Triagens from './pages/triagens'
 import Calendario from './pages/Calendario'
 import MinhaConta from './pages/minhaConta'
 import MinhasReunioes from './pages/minhasReunioes'
@@ -36,9 +37,13 @@ export default function App() {
                         <Route element={<RotaProtegida papeis={['dependente', 'psicologo']} />}>
                             <Route path="/Calendario" element={<Calendario />} />
                         </Route>
-                        {/* Gestão: admin e psicólogo, pela barra lateral */}
-                        <Route element={<RotaProtegida papeis={['admin', 'psicologo']} />}>
+                        {/* Gestão: só o admin (as rotas /admin/* do backend respondem 403 aos outros) */}
+                        <Route element={<RotaProtegida papeis={['admin']} />}>
                             <Route path="/adminPsico" element={<AdminPsico />} />
+                        </Route>
+                        {/* Triagens recebidas: só o psicólogo lê com o nome real (GET /triages responde 403 aos outros) */}
+                        <Route element={<RotaProtegida papeis={['psicologo']} />}>
+                            <Route path="/triagens" element={<Triagens />} />
                         </Route>
                         <Route path="*" element={<NaoEncontrada />} />
                     </Routes>
