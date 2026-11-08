@@ -1,4 +1,5 @@
 import { useCallback, useId, useState } from 'react'
+import type { ReactNode } from 'react'
 import { ChevronDown, ClipboardList } from 'lucide-react'
 import type { PageResponseDTO } from '../api/pagina'
 import type { AnswerResponseDTO } from '../api/triage'
@@ -25,6 +26,11 @@ export interface TriagemExibida {
 interface ListaDeTriagensProps<T extends TriagemExibida> {
     carregarPagina: (pagina: number, tamanho: number) => Promise<PageResponseDTO<T>>
     tamanhoPagina?: number
+    /**
+     * O que mostrar quando a lista volta vazia. Sem isso vale o texto do admin, que lê todas as triagens; o psicólogo só lê a
+     * de quem está inscrito numa reunião dele (decisão 13 do backend) e passa o próprio texto, com o próximo passo.
+     */
+    vazio?: { titulo: string; descricao: string; acao?: ReactNode }
 }
 
 /**
@@ -36,7 +42,11 @@ interface ListaDeTriagensProps<T extends TriagemExibida> {
  *  - nomes e respostas ficam só no estado deste componente (nunca em contexto, storage ou URL) e somem ao sair da tela.
  * Quem usa mostra o AvisoDeAcesso acima, para a pessoa saber do registro antes de clicar.
  */
-export default function ListaDeTriagens<T extends TriagemExibida>({ carregarPagina, tamanhoPagina = 10 }: ListaDeTriagensProps<T>) {
+export default function ListaDeTriagens<T extends TriagemExibida>({
+    carregarPagina,
+    tamanhoPagina = 10,
+    vazio = { titulo: 'Nenhuma triagem recebida ainda', descricao: 'Quando um dependente enviar a triagem, ela aparece aqui.' },
+}: ListaDeTriagensProps<T>) {
     const idBase = useId()
     const buscar = useCallback((pagina: number) => carregarPagina(pagina, tamanhoPagina), [carregarPagina, tamanhoPagina])
     const lista = useListaPaginada(buscar, { aguardarPedido: true, erroPadrao: 'Não foi possível carregar as triagens.' })
@@ -76,11 +86,7 @@ export default function ListaDeTriagens<T extends TriagemExibida>({ carregarPagi
 
     if (items.length === 0) {
         return (
-            <EstadoVazio
-                icone={<ClipboardList size={26} />}
-                titulo="Nenhuma triagem recebida ainda"
-                descricao="Quando um dependente enviar a triagem, ela aparece aqui."
-            />
+            <EstadoVazio icone={<ClipboardList size={26} />} titulo={vazio.titulo} descricao={vazio.descricao} acao={vazio.acao} />
         )
     }
 

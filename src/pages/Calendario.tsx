@@ -69,6 +69,7 @@ import LayoutPainel from '../components/LayoutPainel'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import { useToast } from '../components/ToastContext'
 import useAgora from '../components/useAgora'
+import { formatarRegistro } from '../components/formatar'
 import useArmadilhaFoco from '../components/useArmadilhaFoco'
 import { useSessao } from '../session/SessaoContext'
 
@@ -85,6 +86,7 @@ export interface Reuniao {
     inicio: string // instante ISO-8601 do início, para saber se já começou
     fim: string // instante ISO-8601 do fim, para saber se já terminou
     responsavel?: string // nome do psicólogo anfitrião
+    registro?: string // registro dele no conselho ("CRP 06123456"), para o dependente conferir quem conduz
     status: MeetingStatus // cancelada aparece riscada; encerrada, com o aviso "Encerrada"
     descricao: string | null
     capacidade: number
@@ -147,7 +149,8 @@ function daReuniaoDaApi(m: MeetingResponseDTO): Reuniao {
         horaFim: format(parseISO(m.ends_at), 'HH:mm'),
         inicio: m.starts_at,
         fim: m.ends_at,
-        responsavel: m.host,
+        responsavel: m.host.name,
+        registro: formatarRegistro(m.host),
         status: m.status,
         descricao: m.description,
         capacidade: m.capacity,
@@ -901,6 +904,13 @@ function PopupReuniao({
                                         Organizador
                                     </dt>
                                     <dd>{r.responsavel}</dd>
+                                </div>
+                            )}
+                            {/* O que o anfitrião informou no cadastro (o sistema não o confere): para conferir quem conduz */}
+                            {r.registro && (
+                                <div className="flex gap-2">
+                                    <dt className="font-semibold text-white">Registro</dt>
+                                    <dd>{r.registro}</dd>
                                 </div>
                             )}
                         </dl>

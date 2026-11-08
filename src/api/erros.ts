@@ -38,7 +38,7 @@ export type ErrorCode =
 export const MENSAGENS_ERRO: Record<ErrorCode, string> = {
     VALIDATION_ERROR: 'Confira os campos informados.',
     INVALID_REGISTRATION:
-        'Não foi possível concluir o cadastro. Confira os dados profissionais: o número do registro pode já estar cadastrado.',
+        'Não foi possível concluir o cadastro. Confira os dados profissionais: só aceitamos registro no CRP, e o número pode já estar cadastrado.',
     INVALID_PASSWORD_CHANGE: 'A nova senha precisa ser diferente da atual.',
     INVALID_TRIAGE: 'Não foi possível registrar as respostas. Confira-as e tente novamente.',
     INVALID_MEETING: 'Confira os dados da reunião.',

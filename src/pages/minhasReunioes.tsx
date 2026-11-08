@@ -23,6 +23,7 @@ import ModalConfirmacao from '../components/ModalConfirmacao'
 import { useToast } from '../components/ToastContext'
 import useAgora from '../components/useAgora'
 import { classeBotao } from '../components/estilos'
+import { formatarRegistro } from '../components/formatar'
 
 /**
  * Minhas reuniões (dependente), a partir do frame "Reunião" do Figma: "Próximas" em cartões (o primeiro, o mais perto,
@@ -267,7 +268,11 @@ function CartaoProxima({ reuniao: m, agora, destaque, onCancelarInscricao }: Car
                         {capitalizar(format(inicio, "EEEE, d 'de' MMMM", { locale: ptBR }))} · {format(inicio, 'HH:mm')} -{' '}
                         {format(parseISO(m.ends_at), 'HH:mm')}
                     </p>
-                    <p className={`text-xs ${destaque ? 'text-white' : 'text-texto-suave'}`}>Com {m.host}</p>
+                    {/* O registro no conselho é o que o anfitrião informou no cadastro (o sistema não o confere): está aqui
+                        para quem vai participar conferir quem conduz */}
+                    <p className={`text-xs ${destaque ? 'text-white' : 'text-texto-suave'}`}>
+                        Com {m.host.name} · {formatarRegistro(m.host)}
+                    </p>
                 </div>
             </div>
 
@@ -350,7 +355,7 @@ function ListaRecentes({ reunioes }: { reunioes: MeetingResponseDTO[] }) {
                                     </div>
                                     <div className="flex items-center gap-2 pl-13 sm:pl-0">
                                         <span aria-hidden="true" className="size-6 shrink-0 rounded-full bg-avatar" />
-                                        <span className="text-xs text-black">{m.host}</span>
+                                        <span className="text-xs text-black">{m.host.name}</span>
                                     </div>
                                     <span className="self-start rounded-botao bg-plad px-2.5 py-1 text-xs font-medium text-white sm:self-center">
                                         {cancelada ? 'Cancelada' : 'Encerrada'}

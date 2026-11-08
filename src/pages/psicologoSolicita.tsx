@@ -2,14 +2,14 @@ import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { register } from '../api/auth'
 import { ApiError, errosPorCampo, getErrorMessage } from '../api/client'
-import type { CadastroEtapa1, CrmCrpType } from '../api/auth'
+import type { CadastroEtapa1 } from '../api/auth'
 import Botao from '../components/Botao'
 import Campo from '../components/Campo'
 import LayoutPagina from '../components/LayoutPagina'
 
+// O tipo do registro não é um campo: o cadastro só aceita CRP (o backend recusa CRM), e "CRP" aparece fixo ao lado do número
 interface PsychologistFormData {
     graduate: string
-    credentialType: CrmCrpType
     crmCrpNumber: string
 }
 
@@ -29,14 +29,13 @@ export default function PsychologistRegister({ etapa1, onVoltar }: PsychologistR
 
     const [formData, setFormData] = useState<PsychologistFormData>({
         graduate: '',
-        credentialType: 'CRP',
         crmCrpNumber: '',
     })
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [errosCampo, setErrosCampo] = useState<Record<string, string>>({})
 
-    const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target
         setFormData((prev) => ({ ...prev, [name]: value }))
     }
@@ -57,7 +56,7 @@ export default function PsychologistRegister({ etapa1, onVoltar }: PsychologistR
         try {
             await register({
                 ...etapa1,
-                credential_type: formData.credentialType,
+                credential_type: 'CRP',
                 crm_crp_number: crmCrpNumber,
                 graduate: formData.graduate.trim() || undefined,
             })
@@ -115,28 +114,29 @@ export default function PsychologistRegister({ etapa1, onVoltar }: PsychologistR
                     )}
                 </Campo>
 
-                <Campo rotulo="Tipo de registro" rotuloOculto erro={errosCampo.credential_type}>
-                    {(controle) => (
-                        <select {...controle} name="credentialType" value={formData.credentialType} onChange={handleChange}>
-                            <option value="CRP">CRP</option>
-                            <option value="CRM">CRM</option>
-                        </select>
-                    )}
-                </Campo>
-
-                <Campo rotulo="Número do registro" rotuloOculto erro={errosCampo.crm_crp_number}>
-                    {(controle) => (
-                        <input
-                            {...controle}
-                            type="text"
-                            name="crmCrpNumber"
-                            placeholder="Número do registro (ex.: 06/123456)"
-                            required
-                            value={formData.crmCrpNumber}
-                            onChange={handleChange}
-                        />
-                    )}
-                </Campo>
+                {/* Só CRP: o backend recusa CRM no cadastro (decisão 33). O tipo vai fixo ao lado do número, e o rótulo do campo
+                    já diz "CRP" para o leitor de tela, por isso o texto fixo é só visual */}
+                <div className="flex items-start gap-3">
+                    <span
+                        aria-hidden="true"
+                        className="flex min-h-[51px] shrink-0 items-center rounded-campo bg-plad-fundo px-4 font-outfit text-base font-semibold text-black"
+                    >
+                        CRP
+                    </span>
+                    <Campo className="min-w-0 flex-1" rotulo="Número do registro no CRP" rotuloOculto erro={errosCampo.crm_crp_number}>
+                        {(controle) => (
+                            <input
+                                {...controle}
+                                type="text"
+                                name="crmCrpNumber"
+                                placeholder="Número do registro no CRP (ex.: 06/123456)"
+                                required
+                                value={formData.crmCrpNumber}
+                                onChange={handleChange}
+                            />
+                        )}
+                    </Campo>
+                </div>
 
                 {/* Avisos, e logo abaixo o caminho de volta para a etapa 1 (o mesmo que o Voltar do navegador) */}
                 <div className="space-y-1 pt-4 text-center text-sm">
