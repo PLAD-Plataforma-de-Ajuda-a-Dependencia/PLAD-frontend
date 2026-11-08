@@ -3,7 +3,9 @@ import { montarQuery } from './pagina'
 import type { PageResponseDTO } from './pagina'
 import type { AnswerResponseDTO } from './triage'
 
-// Rotas /triages do backend (TriageReadController): a triagem como o PSICÓLOGO a lê. Só ele (403 para dependente e admin).
+// Rotas /triages do backend (TriageReadController): a triagem como o PSICÓLOGO a lê. Só ele (403 para dependente e admin), e
+// só a de dependentes inscritos numa reunião dele que não foi cancelada (decisão 13): a lista vem vazia sem eles e o detalhe
+// de qualquer outro dependente dá 404, sem auditoria.
 // O psicólogo é o único papel que vê o NOME REAL do dependente (decisão 15 do backend): mostrar só na tela de triagens e
 // nunca guardar fora do estado dela (nada de context, storage ou URL).
 //
@@ -26,15 +28,17 @@ export interface TriageReadResponseDTO {
 }
 
 /**
- * GET /triages?page=&size= → 200: mais recente primeiro; size de 1 a 100 (padrão 20), page a partir de 0
- * | 400 (page ou size fora do limite) | 403 (não é psicólogo). Grava uma entrada de auditoria por triagem da página.
+ * GET /triages?page=&size= → 200: só os dependentes inscritos em reuniões do psicólogo que não foram canceladas, mais
+ * recente primeiro; size de 1 a 100 (padrão 20), page a partir de 0 | 400 (page ou size fora do limite) | 403 (não é
+ * psicólogo). Grava uma entrada de auditoria por triagem da página (nenhuma se a página vem vazia).
  */
 export function listTriages(page: number, size: number) {
     return apiRequest<PageResponseDTO<TriageReadResponseDTO>>('GET', `/triages${montarQuery({ page, size })}`)
 }
 
 /**
- * GET /triages/{id} → 200 | 403 | 404 TRIAGE_NOT_FOUND. Grava uma entrada de auditoria a cada leitura.
+ * GET /triages/{id} → 200 | 403 | 404 TRIAGE_NOT_FOUND (id que não existe OU dependente que não está inscrito numa reunião
+ * dele não cancelada: a resposta é a mesma). Grava uma entrada de auditoria a cada leitura.
  * A tela de triagens NÃO a usa: a lista já traz as respostas, e chamá-la depois gravaria uma segunda entrada para a mesma
  * triagem sem revelar nada novo (ver ListaDeTriagens). Serve a quem precisar abrir uma triagem sem listar.
  */

@@ -8,6 +8,7 @@ import type { MeetingResponseDTO } from '../api/meetings'
 import Botao from './Botao'
 import type { OpcoesDeMidia } from './conectarSala'
 import { classeBotao } from './estilos'
+import { formatarRegistro } from './formatar'
 
 type EstadoDaMidia = 'pedindo' | 'ok' | 'bloqueada' | 'ausente'
 
@@ -60,8 +61,13 @@ export default function PreEntradaSala({
                 <h1 className="font-outfit text-2xl font-semibold text-black">{reuniao.title}</h1>
                 <p className="text-sm text-texto-suave">
                     {format(inicio, "EEEE, d 'de' MMMM", { locale: ptBR })} · {format(inicio, 'HH:mm')} -{' '}
-                    {format(parseISO(reuniao.ends_at), 'HH:mm')} · com {reuniao.host}
+                    {format(parseISO(reuniao.ends_at), 'HH:mm')} · com {reuniao.host.name}
                 </p>
+                {/* Quem vai participar confere quem conduz; o psicólogo não precisa ler o próprio registro. O sistema não confere
+                    o número: ele é o que o anfitrião informou no cadastro */}
+                {!ehAnfitriao && (
+                    <p className="text-sm text-texto-suave">Registro profissional: {formatarRegistro(reuniao.host)}</p>
+                )}
             </div>
 
             {ehAnfitriao ? (

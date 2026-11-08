@@ -222,7 +222,7 @@ function Conteudo({
                 <div className="grid items-center gap-3 lg:grid-cols-[1fr_auto_1fr]">
                     <p className="min-w-0 text-lg text-white">
                         <span className="sr-only">No palco: </span>
-                        {reuniao.host}
+                        {reuniao.host.name}
                         {quemFala && (
                             <span className="block text-sm text-gray-300">
                                 {quemFala.isLocal ? 'Você está falando' : `${quemFala.name || 'Alguém'} está falando`}

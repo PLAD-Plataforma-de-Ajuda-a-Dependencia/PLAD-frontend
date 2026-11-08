@@ -1,3 +1,4 @@
+import type { CrmCrpType } from './auth'
 import { ApiError, apiRequest } from './client'
 
 // Rotas /meetings do backend (MeetingController, RF012). Todas exigem o access token; quem é o dono vem sempre do token.
@@ -15,6 +16,17 @@ export interface MeetingRequestDTO {
     capacity: number // de 2 a 30
 }
 
+/**
+ * plad.dto.MeetingHostDTO: quem conduz a reunião (decisão 23 do backend). O registro no conselho (CRP; contas criadas
+ * antes da recusa do CRM ainda podem ter CRM) é o que o psicólogo digitou no cadastro e o sistema NÃO confere: está aqui
+ * para o dependente conferir por conta própria quem conduz. Nunca traz e-mail.
+ */
+export interface MeetingHostDTO {
+    name: string // nome real do psicólogo anfitrião
+    credential_type: CrmCrpType
+    crm_crp_number: string // só letras e dígitos, como foi guardado (ex.: "06123456")
+}
+
 /** plad.dto.MeetingResponseDTO. Nunca traz e-mail */
 export interface MeetingResponseDTO {
     id: number
@@ -24,7 +36,7 @@ export interface MeetingResponseDTO {
     ends_at: string
     capacity: number
     status: MeetingStatus
-    host: string // nome do psicólogo que criou a reunião
+    host: MeetingHostDTO // o psicólogo que criou a reunião: nome e registro no conselho
     owned_by_me: boolean // true quando quem chama é o anfitrião (só ele edita, cancela e encerra)
     registered_count: number // quantos dependentes estão inscritos; todo papel vê só este número
     registered_by_me: boolean // true quando quem chama é um dependente inscrito; sempre false para psicólogo e admin

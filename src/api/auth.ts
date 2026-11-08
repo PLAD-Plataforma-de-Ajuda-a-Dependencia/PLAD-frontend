@@ -12,8 +12,14 @@ export type UserType = 'dependente' | 'psicologo' | 'admin'
 /** Tipos que se cadastram pela API: o admin nunca (400 INVALID_REGISTRATION), a primeira conta nasce na inicialização do backend */
 export type TipoDeCadastro = Exclude<UserType, 'admin'>
 
-/** plad.entity.CrmCrpType */
+/**
+ * plad.entity.CrmCrpType. Vale para o que a API DEVOLVE: contas criadas antes da recusa do CRM ainda o têm, e a lista do admin,
+ * `GET /me`, o export e o `host` das reuniões continuam mostrando-o. Para o que se ENVIA no cadastro, ver `CredencialDeCadastro`.
+ */
 export type CrmCrpType = 'CRM' | 'CRP'
+
+/** O que o cadastro de psicólogo aceita: só CRP. CRM dá 400 INVALID_REGISTRATION (decisão 33 do backend) */
+export type CredencialDeCadastro = Extract<CrmCrpType, 'CRP'>
 
 /** plad.dto.LoginRequestDTO */
 export interface LoginRequestDTO {
@@ -34,8 +40,8 @@ export interface RegisterRequestDTO {
     birth_date: string // LocalDate, "yyyy-MM-dd"; só maiores de 18 anos
     gender: Sex
     type_user: TipoDeCadastro
-    // credential_type e crm_crp_number são exigidos pelo AuthService quando type_user = 'psicologo'
-    credential_type?: CrmCrpType
+    // credential_type e crm_crp_number são exigidos pelo AuthService quando type_user = 'psicologo'; o tipo só pode ser CRP
+    credential_type?: CredencialDeCadastro
     crm_crp_number?: string
     graduate?: string
     // Versões em vigor dos documentos (ver consentimento.ts); diferentes das do backend, o cadastro dá 400 CONSENT_REQUIRED
