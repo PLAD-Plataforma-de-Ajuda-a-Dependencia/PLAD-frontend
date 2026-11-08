@@ -14,6 +14,8 @@ export type ErrorCode =
     | 'MEETING_CONFLICT'
     | 'MEETING_FULL'
     | 'MEETING_CAPACITY_TOO_LOW'
+    | 'MEETING_NOT_OPEN'
+    | 'MEETING_PARTICIPANT_NOT_FOUND'
     | 'CONSENT_REQUIRED'
     | 'UNAUTHORIZED'
     | 'INVALID_CREDENTIALS'
@@ -25,10 +27,11 @@ export type ErrorCode =
     | 'DATA_CONFLICT'
     | 'RATE_LIMITED'
     | 'SERVICE_UNAVAILABLE'
+    | 'ROOM_UNAVAILABLE'
     | 'INTERNAL_ERROR'
 
 /**
- * Único mapa code → mensagem em pt-BR. RATE_LIMITED, SERVICE_UNAVAILABLE e INTERNAL_ERROR ganham o tempo de espera
+ * Único mapa code → mensagem em pt-BR. RATE_LIMITED, SERVICE_UNAVAILABLE, ROOM_UNAVAILABLE e INTERNAL_ERROR ganham o tempo de espera
  * ou o código de suporte em `montarMensagem`. Telas que precisam de um texto mais específico (senha atual errada,
  * por exemplo) olham o `code` do ApiError.
  */
@@ -45,6 +48,8 @@ export const MENSAGENS_ERRO: Record<ErrorCode, string> = {
     MEETING_FULL: 'Essa reunião não tem mais vagas.',
     MEETING_CAPACITY_TOO_LOW:
         'Já há mais pessoas inscritas do que essa capacidade. Aumente o número de vagas ou deixe como está.',
+    MEETING_NOT_OPEN: 'A sala dessa reunião não está aberta agora.',
+    MEETING_PARTICIPANT_NOT_FOUND: 'Essa pessoa não está conectada à sala agora.',
     CONSENT_REQUIRED:
         'Os Termos de Uso e a Política de Privacidade mudaram. Recarregue a página e aceite as versões em vigor.',
     UNAUTHORIZED: 'Sua sessão expirou. Entre novamente para continuar.',
@@ -57,6 +62,7 @@ export const MENSAGENS_ERRO: Record<ErrorCode, string> = {
     DATA_CONFLICT: 'Esses dados entram em conflito com um cadastro que já existe.',
     RATE_LIMITED: 'Muitas tentativas.',
     SERVICE_UNAVAILABLE: 'O serviço está indisponível no momento.',
+    ROOM_UNAVAILABLE: 'A sala de vídeo não respondeu agora. Nada foi alterado.',
     INTERNAL_ERROR: 'Erro interno.',
 }
 
@@ -109,7 +115,7 @@ export function montarMensagem({ status, code, retryAfterSeconds, trace }: Dados
             ? `${base} Tente novamente em ${formatarEspera(retryAfterSeconds)}.`
             : `${base} Aguarde um pouco e tente novamente.`
     }
-    if (code === 'SERVICE_UNAVAILABLE') {
+    if (code === 'SERVICE_UNAVAILABLE' || code === 'ROOM_UNAVAILABLE') {
         return retryAfterSeconds ? `${base} Tente novamente em ${formatarEspera(retryAfterSeconds)}.` : base
     }
     if (code === 'INTERNAL_ERROR') {

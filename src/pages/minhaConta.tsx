@@ -1,21 +1,29 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Eye } from 'lucide-react'
 import { ApiError, errosPorCampo, getErrorMessage } from '../api/client'
-import { changePassword, deleteMyAccount, exportMyData } from '../api/me'
+import type { AuditAction } from '../api/auditoria'
+import { changePassword, deleteMyAccount, exportMyData, getAccessLog } from '../api/me'
 import { setToken } from '../api/token'
 import Botao from '../components/Botao'
 import Card from '../components/Card'
 import CampoSenha from '../components/CampoSenha'
+import Carregando from '../components/Carregando'
+import EstadoErro from '../components/EstadoErro'
+import EstadoVazio from '../components/EstadoVazio'
 import LayoutPagina from '../components/LayoutPagina'
 import ModalConfirmacao from '../components/ModalConfirmacao'
+import Paginacao from '../components/Paginacao'
 import { useToast } from '../components/ToastContext'
+import { formatarDataHora } from '../components/formatar'
+import useListaPaginada from '../components/useListaPaginada'
 import { destinoPorPapel, useSessao } from '../session/SessaoContext'
 
 /**
  * Minha conta (qualquer papel): trocar a senha (PUT /me/password), exportar os próprios dados (GET /me/export) e
- * excluir a conta (DELETE /me, com confirmação). Visual provisório: segue Login e Triagem, sem frame do Figma.
+ * excluir a conta (DELETE /me, com confirmação). O dependente vê também "Quem viu meus dados" (GET /me/access-log).
+ * Visual provisório: segue Login e Triagem, sem frame do Figma.
  */
 
 const SENHA_MIN = 8
@@ -172,6 +180,75 @@ function ExportarDados() {
     )
 }
 
+const ACESSOS_POR_PAGINA = 10
+const buscarAcessos = (pagina: number) => getAccessLog(pagina, ACESSOS_POR_PAGINA)
+
+// O que o dependente lê para cada ação que o backend lista no log de acessos (leituras de terceiros)
+const TEXTO_DO_ACESSO: Partial<Record<AuditAction, string>> = {
+    TRIAGE_VIEWED: 'Sua triagem foi consultada',
+    MEETING_PARTICIPANTS_VIEWED: 'A lista de inscritos de uma reunião em que você está foi consultada',
+}
+// Só o papel, nunca quem: o backend nem manda o nome (LGPD art. 18)
+const QUEM_CONSULTOU: Record<string, string> = { psicologo: 'Por um psicólogo', admin: 'Por um administrador' }
+
+/**
+ * Transparência ao titular: quando um psicólogo ou um administrador consultou os dados dele. Ler o próprio log não é
+ * auditado, então carrega ao montar.
+ */
+function QuemViuMeusDados() {
+    const lista = useListaPaginada(buscarAcessos, { erroPadrao: 'Não foi possível carregar os acessos aos seus dados.' })
+    const { carga } = lista
+
+    return (
+        <Secao
+            titulo="Quem viu meus dados"
+            descricao="Aqui aparece quando um psicólogo ou um administrador consultou informações suas, como a triagem. Mostramos o papel de quem consultou, nunca o nome."
+        >
+            {(carga.estado === 'carregando' || carga.estado === 'inicial') && <Carregando mensagem="Carregando…" />}
+            {carga.estado === 'erro' && (
+                <EstadoErro titulo="Não conseguimos carregar agora" mensagem={carga.mensagem} onTentarNovamente={lista.recarregar} />
+            )}
+            {carga.estado === 'pronto' && carga.dados.items.length === 0 && (
+                <EstadoVazio
+                    icone={<Eye size={26} />}
+                    titulo="Ninguém consultou os seus dados"
+                    descricao="Se um psicólogo ou um administrador consultar, você vê aqui, com a data."
+                />
+            )}
+            {carga.estado === 'pronto' && carga.dados.items.length > 0 && (
+                <>
+                    <ul className="divide-y divide-borda-cartao">
+                        {carga.dados.items.map((acesso, indice) => (
+                            <li key={`${acesso.occurred_at}-${indice}`} className="flex items-start gap-3 py-3">
+                                <span
+                                    aria-hidden="true"
+                                    className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-plad-fundo text-plad"
+                                >
+                                    <Eye size={18} />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-base text-black">{TEXTO_DO_ACESSO[acesso.action] ?? 'Seus dados foram consultados'}</p>
+                                    <p className="text-sm text-texto-suave">
+                                        {(acesso.actor_role ? QUEM_CONSULTOU[acesso.actor_role] : undefined) ?? 'Por um profissional autorizado'} ·{' '}
+                                        {formatarDataHora(acesso.occurred_at)}
+                                    </p>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                    <Paginacao
+                        rotulo="Páginas dos acessos"
+                        pagina={lista.pagina}
+                        totalPaginas={carga.dados.total_pages}
+                        totalItens={carga.dados.total_elements}
+                        onMudar={lista.irPara}
+                    />
+                </>
+            )}
+        </Secao>
+    )
+}
+
 function ExcluirConta() {
     const { sair } = useSessao()
     const { avisar } = useToast()
@@ -260,6 +337,8 @@ export default function MinhaConta() {
 
                 <TrocarSenha />
                 <ExportarDados />
+                {/* Só o dependente tem log de acessos (o back responde 403 aos outros papéis) */}
+                {me.type_user === 'dependente' && <QuemViuMeusDados />}
                 {/* O back responde 403 à exclusão de um admin; a seção nem aparece */}
                 {me.type_user !== 'admin' && <ExcluirConta />}
             </div>

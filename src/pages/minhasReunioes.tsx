@@ -2,10 +2,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format, isToday, isYesterday, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { CalendarClock, CalendarDays, UserMinus, Video } from 'lucide-react'
+import { CalendarClock, CalendarDays, DoorOpen, UserMinus, Video } from 'lucide-react'
 
 import { ApiError } from '../api/client'
-import { cancelRegistration, listMeetings, mensagemDeInscricao, textoDeVagas, vagasRestantes } from '../api/meetings'
+import {
+    aberturaDaSala,
+    cancelRegistration,
+    listMeetings,
+    mensagemDeInscricao,
+    podeEntrar,
+    textoDeVagas,
+    vagasRestantes,
+} from '../api/meetings'
 import type { MeetingResponseDTO } from '../api/meetings'
 import Carregando from '../components/Carregando'
 import EstadoErro from '../components/EstadoErro'
@@ -13,6 +21,7 @@ import EstadoVazio from '../components/EstadoVazio'
 import LayoutPainel from '../components/LayoutPainel'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import { useToast } from '../components/ToastContext'
+import useAgora from '../components/useAgora'
 import { classeBotao } from '../components/estilos'
 
 /**
@@ -22,7 +31,9 @@ import { classeBotao } from '../components/estilos'
  * a partir de 3 horas atrás (uma reunião dura até 180 minutos: as que começaram antes disso já terminaram): uma para
  * frente, para as próximas, e uma para trás, para as recentes. Uma reunião daqui a mais de dois meses só aparece quando
  * chegar perto.
- * Do frame ficaram de fora "Entrar", "Chegar atrasado" e "Lembrete" (não há sala de reunião nem lembretes no backend),
+ * "Entrar" leva à sala ao vivo (`/reuniao/:id`) e só aparece dentro da janela (10 min antes do início até o fim, reunião
+ * agendada: `podeEntrar`); ele se habilita sozinho (`useAgora`), sem recarregar a página.
+ * Do frame ficaram de fora "Chegar atrasado" e "Lembrete" (não há lembretes no backend),
  * os filtros "Todas/Conteúdo" (não há conteúdo) e o tipo "Reunião Informativa" (a reunião não tem tipo: no lugar, as vagas).
  */
 
@@ -99,6 +110,15 @@ export default function MinhasReunioes() {
         }
     }, [cargaAtual])
 
+    // O "agora" dos cartões anda sozinho: o "Entrar" aparece quando a sala abre e "Em andamento" muda no início, sem
+    // recarregar. A classificação em próximas/recentes continua presa ao instante da busca, para um cartão não pular de
+    // lugar com a pessoa olhando para ele.
+    const limitesDoRelogio = useMemo(
+        () => proximas.flatMap((m) => [aberturaDaSala(m), Date.parse(m.starts_at), Date.parse(m.ends_at)]),
+        [proximas],
+    )
+    const agoraVivo = useAgora(limitesDoRelogio)
+
     async function confirmarCancelamento() {
         if (!aCancelar || cancelando) return
         const reuniao = aCancelar
@@ -167,7 +187,7 @@ export default function MinhasReunioes() {
                                             <li key={m.id}>
                                                 <CartaoProxima
                                                     reuniao={m}
-                                                    agora={cargaAtual.agora}
+                                                    agora={agoraVivo}
                                                     destaque={i === 0}
                                                     onCancelarInscricao={() => setACancelar(m)}
                                                 />
@@ -224,11 +244,14 @@ function CartaoProxima({ reuniao: m, agora, destaque, onCancelarInscricao }: Car
     const inicio = parseISO(m.starts_at)
     const cancelada = m.status === 'cancelled'
     const jaComecou = Date.parse(m.starts_at) <= agora
+    const terminou = Date.parse(m.ends_at) <= agora
     const rotulo = cancelada
         ? 'Reunião cancelada'
-        : jaComecou
-          ? 'Em andamento'
-          : textoDeVagas(vagasRestantes(m.capacity, m.registered_count))
+        : terminou
+          ? 'Reunião terminada'
+          : jaComecou
+            ? 'Em andamento'
+            : textoDeVagas(vagasRestantes(m.capacity, m.registered_count))
 
     return (
         <article
@@ -261,6 +284,16 @@ function CartaoProxima({ reuniao: m, agora, destaque, onCancelarInscricao }: Car
                             <UserMinus size={16} aria-hidden="true" />
                             Cancelar inscrição
                         </button>
+                    </div>
+                )}
+                {/* Só dentro da janela da sala (10 min antes do início até o fim); se o relógio daqui estiver adiantado, a sala
+                    responde 409 e explica quando abre */}
+                {podeEntrar(m, agora) && (
+                    <div>
+                        <Link to={`/reuniao/${m.id}`} className={CLASSE_BOTAO_CARTAO}>
+                            <DoorOpen size={16} aria-hidden="true" />
+                            Entrar na reunião
+                        </Link>
                     </div>
                 )}
             </div>

@@ -35,6 +35,7 @@ export interface MeetingResponseDTO {
  * um dependente (decisão 26 do backend): mostrar só na lista do anfitrião e nunca guardar fora do estado da tela.
  */
 export interface MeetingParticipantDTO {
+    identity: string // identidade opaca desta pessoa NESTA reunião (a mesma da sala ao vivo); é o que speak e remove pedem
     nickname: string
     real_name: string
     registered_at: string // Instant em ISO-8601 (UTC)
@@ -77,6 +78,32 @@ export function cancelMeeting(id: number) {
 /** POST /meetings/{id}/end → 200 | 403 | 404 | 409 MEETING_CONFLICT (não está agendada, ou ainda não começou) */
 export function endMeeting(id: number) {
     return apiRequest<MeetingResponseDTO>('POST', `/meetings/${id}/end`)
+}
+
+/** A sala abre 10 minutos antes do início (MeetingRules.JOIN_LEAD_TIME do backend) e fecha no fim da reunião */
+export const ANTECEDENCIA_DA_SALA_MS = 10 * 60 * 1000
+
+/** Instante (ms) em que a sala abre */
+export function aberturaDaSala(m: Pick<MeetingResponseDTO, 'starts_at'>): number {
+    return Date.parse(m.starts_at) - ANTECEDENCIA_DA_SALA_MS
+}
+
+/**
+ * "Entrar" aparece só para o anfitrião e para o dependente inscrito, com a reunião agendada, de 10 min antes do início
+ * até o fim (início inclusivo, fim exclusivo, como MeetingRules#joinWindowOpen). O status NÃO vira sozinho depois do
+ * fim (não há tarefa que encerre), por isso se compara com `ends_at` e não só com `status`. O relógio do servidor
+ * decide de verdade: todo POST /join ainda trata o 409 MEETING_NOT_OPEN.
+ */
+export function podeEntrar(
+    m: Pick<MeetingResponseDTO, 'status' | 'starts_at' | 'ends_at' | 'owned_by_me' | 'registered_by_me'>,
+    agora: number,
+): boolean {
+    return (
+        (m.owned_by_me || m.registered_by_me) &&
+        m.status === 'scheduled' &&
+        agora >= aberturaDaSala(m) &&
+        agora < Date.parse(m.ends_at)
+    )
 }
 
 /** Vagas que sobram (nunca negativo: o backend não deixa passar da capacidade, mas a tela pode estar desatualizada) */

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import {
     addDays,
     addMonths,
@@ -26,6 +27,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Clock,
+    DoorOpen,
     Hexagon,
     HandCoins,
     Maximize2,
@@ -40,6 +42,7 @@ import {
 
 import { ApiError, errosPorCampo } from '../api/client'
 import {
+    aberturaDaSala,
     cancelMeeting,
     cancelRegistration,
     createMeeting,
@@ -48,6 +51,7 @@ import {
     listMeetings,
     listParticipants,
     mensagemDeInscricao,
+    podeEntrar,
     registerForMeeting,
     textoDeVagas,
     updateMeeting,
@@ -64,6 +68,7 @@ import EstadoVazio from '../components/EstadoVazio'
 import LayoutPainel from '../components/LayoutPainel'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import { useToast } from '../components/ToastContext'
+import useAgora from '../components/useAgora'
 import useArmadilhaFoco from '../components/useArmadilhaFoco'
 import { useSessao } from '../session/SessaoContext'
 
@@ -709,9 +714,14 @@ function PopupReuniao({
     onInscrever,
     onCancelarInscricao,
 }: PopupReuniaoProps) {
-    // O popup é montado ao abrir o dia, então "agora" é o instante da abertura; se a situação mudar enquanto ele está
-    // aberto, o backend responde 409 e a lista é buscada de novo
-    const [agora] = useState(() => Date.now())
+    // "Agora" anda sozinho nos limites das reuniões do dia (a sala abre 10 min antes, o início, o fim): o "Entrar" aparece
+    // e "Editar"/"Encerrar" trocam de lugar sem fechar o popup. Se a situação ainda assim mudar sem que a tela perceba, o
+    // backend responde 409 e a lista é buscada de novo.
+    const limitesDoRelogio = useMemo(
+        () => reunioes.flatMap((r) => [aberturaDaSala({ starts_at: r.inicio }), Date.parse(r.inicio), Date.parse(r.fim)]),
+        [reunioes],
+    )
+    const agora = useAgora(limitesDoRelogio)
     const popupRef = useRef<HTMLDivElement>(null)
     const [pos, setPos] = useState<PosicaoPopup>({ lado: 'direita', vertical: 'topo', dx: 0, dy: 0 })
     // O botão de expandir (canto do popup) mostra a duração e quem organiza; o popup cresce e se reposiciona
@@ -832,6 +842,24 @@ function PopupReuniao({
                                     </button>
                                 )
                             )}
+                        </div>
+                    )}
+                    {/* A sala: o anfitrião e o dependente inscrito entram de 10 min antes do início até o fim */}
+                    {podeEntrar(
+                        {
+                            status: r.status,
+                            starts_at: r.inicio,
+                            ends_at: r.fim,
+                            owned_by_me: r.minha,
+                            registered_by_me: r.inscritoPorMim,
+                        },
+                        agora,
+                    ) && (
+                        <div className="pt-1">
+                            <Link to={`/reuniao/${r.id}`} className={CLASSE_ACAO_POPUP}>
+                                <DoorOpen size={14} aria-hidden="true" />
+                                Entrar na reunião
+                            </Link>
                         </div>
                     )}
                     {r.minha && r.status === 'scheduled' && (
