@@ -6,12 +6,12 @@ import LayoutPainel from '../components/LayoutPainel'
 import ListaDeTriagens from '../components/ListaDeTriagens'
 import { classeBotao } from '../components/estilos'
 
-// O que a lista mostra quando não há nenhuma: o psicólogo só lê a triagem de quem se inscreveu numa reunião dele, então o
-// próximo passo é ter uma reunião (decisão 13 do backend)
+// O que a lista mostra quando não há nenhuma: o psicólogo só lê a triagem de quem se inscreveu numa reunião dele, até 30
+// dias depois do fim dela, então o próximo passo é ter uma reunião (decisão 13 do backend)
 const SEM_TRIAGENS = {
     titulo: 'Nenhuma triagem para mostrar',
     descricao:
-        'Aqui aparecem só os dependentes inscritos nas suas reuniões que não foram canceladas. Quando alguém se inscrever em uma reunião sua, a triagem dessa pessoa aparece aqui.',
+        'Aqui aparecem só os dependentes inscritos nas suas reuniões que não foram canceladas, até 30 dias depois do fim de cada reunião. Quando alguém se inscrever em uma reunião sua, a triagem dessa pessoa aparece aqui.',
     acao: (
         <Link to="/Calendario" className={classeBotao()}>
             Ir para o calendário
@@ -20,9 +20,10 @@ const SEM_TRIAGENS = {
 }
 
 /**
- * Triagens (só psicólogo): as respostas dos dependentes inscritos nas reuniões dele que não foram canceladas, com o apelido e
- * o nome real, para acompanhar o caso. O backend recusa as demais (a lista só traz as dele e o detalhe de outro dependente
- * dá 404), então não existe filtro aqui: o que a API não devolve, a tela não tem como mostrar.
+ * Triagens (só psicólogo): as respostas dos dependentes inscritos nas reuniões dele que não foram canceladas, até 30 dias
+ * corridos depois do fim de cada uma, com o apelido e o nome real, para acompanhar o caso. O backend recusa as demais (a
+ * lista só traz as dele e o detalhe de outro dependente dá 404), então não existe filtro aqui: o que a API não devolve, a
+ * tela não tem como mostrar. Um dependente que retira o consentimento de saúde tem a triagem apagada e some da lista.
  * É a única tela, junto da lista de inscritos de uma reunião, com o NOME REAL de um dependente (decisão 15 do backend).
  * O backend audita cada triagem devolvida pela lista e o dependente vê isso em "Quem viu meus dados" (só o papel, nunca
  * quem), por isso o aviso fica à vista antes de tudo e a lista só carrega no clique em "Ver triagens". As respostas vêm na
@@ -37,7 +38,8 @@ export default function Triagens() {
                 <h1 className="font-outfit text-2xl font-bold text-black">Triagens</h1>
                 <p className="mb-6 mt-1 text-sm text-texto-suave">
                     O que responderam os dependentes inscritos nas suas reuniões (as que não foram canceladas), para você
-                    acompanhar cada caso. A triagem de quem não está inscrito em uma reunião sua não aparece.
+                    acompanhar cada caso. A triagem de quem não está inscrito em uma reunião sua não aparece, e a de uma
+                    reunião que já terminou fica aqui até 30 dias depois do fim dela.
                 </p>
 
                 <div className="space-y-5">

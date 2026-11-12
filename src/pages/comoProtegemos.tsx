@@ -3,7 +3,7 @@ import PaginaDeDocumento from '../components/PaginaDeDocumento'
 
 /**
  * /como-protegemos: "Como protegemos seus dados", em linguagem simples. Página pública (sem login).
- * Descreve o que o sistema FAZ hoje (decisões 7, 9, 11, 13, 15, 16, 18 e 26 a 31 do backend) e também o que ele ainda
+ * Descreve o que o sistema FAZ hoje (decisões 7, 9, 11, 13, 15, 16, 18, 26 a 31 e 35 do backend) e também o que ele ainda
  * NÃO faz, sem prometer mais do que existe. Quando uma dessas regras mudar, este texto muda junto.
  * Escrito sem revisão jurídica nem clínica: está na decisão 37 do backend como texto a revisar.
  */
@@ -18,7 +18,10 @@ export default function ComoProtegemos() {
                 <li>O seu cadastro: nome, e-mail, data de nascimento e gênero. A senha não é guardada: guardamos só um código que não dá para desfazer.</li>
                 <li>Se você é dependente: o seu apelido, a triagem (se você enviar) e as reuniões em que você se inscreveu.</li>
                 <li>Se você é psicólogo: o número do seu registro no conselho (CRP), do jeito que você informou.</li>
-                <li>Os seus aceites: qual documento, qual versão, quando e de que endereço de internet (IP).</li>
+                <li>
+                    Os seus aceites: qual documento, qual versão, quando e de que endereço de internet (IP). Se você retirar um
+                    consentimento, guardamos também quando o retirou.
+                </li>
             </ul>
 
             <h2>O seu apelido</h2>
@@ -40,7 +43,10 @@ export default function ComoProtegemos() {
                 tratar dados de saúde, e você pode deixar qualquer pergunta sem resposta.
             </p>
             <ul>
-                <li>O psicólogo lê a triagem de quem está inscrito em uma reunião dele que não foi cancelada. De mais ninguém.</li>
+                <li>
+                    O psicólogo lê a triagem de quem está inscrito em uma reunião dele que não foi cancelada, e só até 30 dias
+                    depois do dia em que a reunião termina. De mais ninguém.
+                </li>
                 <li>Administradores leem as triagens com o apelido, sem o nome real.</li>
                 <li>Você recebe as suas respostas ao enviar e pode baixar uma cópia em "Minha conta".</li>
             </ul>
@@ -77,14 +83,20 @@ export default function ComoProtegemos() {
                     Apagar a sua conta: o cadastro, a triagem, os aceites e as inscrições são apagados de verdade, não só escondidos. Só
                     fica o registro de leituras, que guarda números e papéis, sem nome nem respostas.
                 </li>
+                <li>
+                    Retirar o consentimento para tratarmos os seus dados de saúde: "Minha conta", "Consentimento para dados de
+                    saúde". A sua triagem é apagada, as suas inscrições em reuniões que ainda não começaram são canceladas e os
+                    psicólogos deixam de ver a triagem. Fica só o registro de que você deu o consentimento e de quando o retirou.
+                    Para enviar a triagem ou se inscrever de novo, você dá o consentimento outra vez.
+                </li>
                 <li>Trocar a senha: isso encerra a sua sessão em todos os outros aparelhos.</li>
             </ul>
 
             <h2>O que ainda não fazemos</h2>
             <ul>
                 <li>
-                    Ainda não há um botão para retirar um consentimento. Hoje o caminho é apagar a conta, e é sempre possível parar de
-                    usar a PLAD.
+                    Os aceites dos Termos de Uso e da Política de Privacidade não têm um botão de retirada. Para eles, o caminho é
+                    apagar a conta, e é sempre possível parar de usar a PLAD.
                 </li>
                 <li>
                     Não conferimos o registro dos psicólogos no conselho: ele é informado por eles. Você pode consultá-lo no conselho de

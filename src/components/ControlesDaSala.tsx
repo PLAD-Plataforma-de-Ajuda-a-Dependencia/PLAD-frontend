@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useLocalParticipant, useMediaDeviceSelect } from '@livekit/components-react'
 
+import ModalConfirmacao from './ModalConfirmacao'
 import { useToast } from './ToastContext'
 
 export type AbaDoPainel = 'chat' | 'inscritos'
@@ -65,6 +66,28 @@ export default function ControlesDaSala({
 }: ControlesDaSalaProps) {
     const { localParticipant, isMicrophoneEnabled, isCameraEnabled, isScreenShareEnabled } = useLocalParticipant()
     const { avisar } = useToast()
+    // Dependente liberado: na primeira vez que liga a câmera, pergunta antes (o rosto passa a ser visto pelo grupo).
+    // Só na memória deste componente: ao entrar na sala de novo, pergunta outra vez. O anfitrião não vê o diálogo.
+    const [cameraConfirmada, setCameraConfirmada] = useState(false)
+    const [perguntandoCamera, setPerguntandoCamera] = useState(false)
+    // O psicólogo encerrou a fala com a pergunta aberta: ela fecha e não reaparece sozinha na próxima liberação
+    if (perguntandoCamera && !podePublicar) {
+        setPerguntandoCamera(false)
+    }
+
+    function aoClicarNaCamera() {
+        if (!ehAnfitriao && !isCameraEnabled && !cameraConfirmada) {
+            setPerguntandoCamera(true)
+            return
+        }
+        void alternar('camera')
+    }
+
+    function confirmarCamera() {
+        setPerguntandoCamera(false)
+        setCameraConfirmada(true)
+        void alternar('camera')
+    }
 
     async function alternar(qual: 'microfone' | 'camera' | 'tela') {
         try {
@@ -121,7 +144,7 @@ export default function ControlesDaSala({
                     </div>
                     <button
                         type="button"
-                        onClick={() => alternar('camera')}
+                        onClick={aoClicarNaCamera}
                         aria-label={isCameraEnabled ? 'Desligar a câmera' : 'Ligar a câmera'}
                         title={isCameraEnabled ? 'Desligar a câmera' : 'Ligar a câmera'}
                         className={BOTAO_NORMAL}
@@ -227,6 +250,16 @@ export default function ControlesDaSala({
             >
                 <Phone size={20} className="rotate-[135deg]" aria-hidden="true" />
             </button>
+
+            <ModalConfirmacao
+                aberto={perguntandoCamera && podePublicar}
+                titulo="Ligar a câmera?"
+                descricao="Os outros participantes vão ver seu rosto."
+                rotuloConfirmar="Ligar a câmera"
+                rotuloCancelar="Agora não"
+                onConfirmar={confirmarCamera}
+                onCancelar={() => setPerguntandoCamera(false)}
+            />
         </div>
     )
 }

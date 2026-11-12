@@ -1,12 +1,9 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Home from './pages/home'
 import CriarConta from './pages/criarConta'
 import Login from './pages/Login'
-import AdminPsico from './pages/adminPsico'
 import Triagem from './pages/Triagem'
-import Triagens from './pages/triagens'
-import Calendario from './pages/Calendario'
 import ComoProtegemos from './pages/comoProtegemos'
 import ConsentimentoSaude from './pages/consentimentoSaude'
 import MinhaConta from './pages/minhaConta'
@@ -20,8 +17,18 @@ import RotaProtegida from './components/RotaProtegida'
 import ToastProvider from './components/ToastProvider'
 import SessaoProvider from './session/SessaoProvider'
 
-// A sala ao vivo traz o SDK do LiveKit (centenas de KB): só é baixada quando alguém abre /reuniao/:id
+// Carregadas sob demanda, cada uma no seu pedaço do bundle: o principal fica abaixo dos 500 kB do aviso do Vite.
+// A sala ao vivo traz o SDK do LiveKit (centenas de KB): só é baixada quando alguém abre /reuniao/:id. O calendário,
+// a Gestão e as Triagens só servem a quem está logado no papel certo, então quem abre a home ou o login não as baixa.
 const Reuniao = lazy(() => import('./pages/reuniao'))
+const Calendario = lazy(() => import('./pages/Calendario'))
+const AdminPsico = lazy(() => import('./pages/adminPsico'))
+const Triagens = lazy(() => import('./pages/triagens'))
+
+// O que aparece enquanto o pedaço da página chega (o mesmo `Carregando` de tela cheia das outras esperas)
+function SobDemanda({ mensagem, children }: { mensagem: string; children: ReactNode }) {
+    return <Suspense fallback={<Carregando tela mensagem={mensagem} />}>{children}</Suspense>
+}
 
 export default function App() {
     return (
@@ -50,24 +57,45 @@ export default function App() {
                             <Route path="/minhas-reunioes" element={<MinhasReunioes />} />
                         </Route>
                         <Route element={<RotaProtegida papeis={['dependente', 'psicologo']} />}>
-                            <Route path="/Calendario" element={<Calendario />} />
+                            <Route
+                                path="/Calendario"
+                                element={
+                                    <SobDemanda mensagem="Carregando o calendário…">
+                                        <Calendario />
+                                    </SobDemanda>
+                                }
+                            />
                             {/* A sala ao vivo: o anfitrião e o dependente inscrito (o POST /join responde 403 aos outros) */}
                             <Route
                                 path="/reuniao/:id"
                                 element={
-                                    <Suspense fallback={<Carregando tela mensagem="Abrindo a reunião…" />}>
+                                    <SobDemanda mensagem="Abrindo a reunião…">
                                         <Reuniao />
-                                    </Suspense>
+                                    </SobDemanda>
                                 }
                             />
                         </Route>
                         {/* Gestão: só o admin (as rotas /admin/* do backend respondem 403 aos outros) */}
                         <Route element={<RotaProtegida papeis={['admin']} />}>
-                            <Route path="/adminPsico" element={<AdminPsico />} />
+                            <Route
+                                path="/adminPsico"
+                                element={
+                                    <SobDemanda mensagem="Carregando a gestão…">
+                                        <AdminPsico />
+                                    </SobDemanda>
+                                }
+                            />
                         </Route>
                         {/* Triagens recebidas: só o psicólogo lê com o nome real (GET /triages responde 403 aos outros) */}
                         <Route element={<RotaProtegida papeis={['psicologo']} />}>
-                            <Route path="/triagens" element={<Triagens />} />
+                            <Route
+                                path="/triagens"
+                                element={
+                                    <SobDemanda mensagem="Carregando as triagens…">
+                                        <Triagens />
+                                    </SobDemanda>
+                                }
+                            />
                         </Route>
                         <Route path="*" element={<NaoEncontrada />} />
                     </Routes>

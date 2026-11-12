@@ -4,7 +4,7 @@ import { format } from 'date-fns'
 import { ArrowLeft, Eye } from 'lucide-react'
 import { ApiError, errosPorCampo, getErrorMessage } from '../api/client'
 import type { AuditAction } from '../api/auditoria'
-import { changePassword, deleteMyAccount, exportMyData, getAccessLog } from '../api/me'
+import { changePassword, deleteMyAccount, exportMyData, getAccessLog, revokeHealthConsent } from '../api/me'
 import { setToken } from '../api/token'
 import Botao from '../components/Botao'
 import Card from '../components/Card'
@@ -16,13 +16,15 @@ import LayoutPagina from '../components/LayoutPagina'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import Paginacao from '../components/Paginacao'
 import { useToast } from '../components/ToastContext'
+import { classeBotao } from '../components/estilos'
 import { formatarDataHora } from '../components/formatar'
 import useListaPaginada from '../components/useListaPaginada'
 import { destinoPorPapel, useSessao } from '../session/SessaoContext'
 
 /**
  * Minha conta (qualquer papel): trocar a senha (PUT /me/password), exportar os próprios dados (GET /me/export) e
- * excluir a conta (DELETE /me, com confirmação). O dependente vê também "Quem viu meus dados" (GET /me/access-log).
+ * excluir a conta (DELETE /me, com confirmação). O dependente vê também "Quem viu meus dados" (GET /me/access-log) e
+ * pode retirar o consentimento para dados de saúde (DELETE /me/consents/health, com confirmação em dois passos).
  * Visual provisório: segue Login e Triagem, sem frame do Figma.
  */
 
@@ -249,6 +251,127 @@ function QuemViuMeusDados() {
     )
 }
 
+/**
+ * Retirar o consentimento para tratar dado de saúde (LGPD art. 8º, § 5º e art. 18, IX; decisão 35 do backend). Só o
+ * dependente. Apaga dados de verdade, então pergunta em dois passos: o primeiro explica o que é apagado e o que fica; o
+ * segundo pede que a pessoa marque que entendeu antes do botão vermelho (assim um clique duplo no "Continuar" não passa
+ * pelos dois passos). Cada passo é um modal à parte: o foco começa em "Manter" no primeiro e na caixa no segundo.
+ */
+function ConsentimentoDeSaude({ pendente }: { pendente: boolean }) {
+    const { atualizarMe } = useSessao()
+    const { avisar } = useToast()
+    const [passo, setPasso] = useState<0 | 1 | 2>(0)
+    const [entendeu, setEntendeu] = useState(false)
+    const [retirando, setRetirando] = useState(false)
+    const [erro, setErro] = useState<string | null>(null)
+
+    const fechar = () => {
+        setPasso(0)
+        setEntendeu(false)
+        setErro(null)
+    }
+
+    const retirar = async () => {
+        setRetirando(true)
+        setErro(null)
+        try {
+            await revokeHealthConsent()
+            fechar()
+            // O que o backend mudou: o aceite deixou de valer e a triagem foi apagada
+            atualizarMe({ health_consent_pending: true, has_triage: false })
+            avisar('Consentimento retirado. A sua triagem foi apagada.')
+        } catch (err) {
+            setErro(getErrorMessage(err, 'Não foi possível retirar o consentimento.'))
+        } finally {
+            setRetirando(false)
+        }
+    }
+
+    if (pendente) {
+        return (
+            <Secao
+                titulo="Consentimento para dados de saúde"
+                descricao="Você não tem um consentimento ativo para a PLAD tratar os seus dados de saúde. Sem ele, não dá para enviar a triagem nem se inscrever em reuniões."
+            >
+                <Link to="/consentimento-saude" state={{ de: '/minha-conta' }} className={classeBotao('secundario', true)}>
+                    Ver o consentimento
+                </Link>
+            </Secao>
+        )
+    }
+
+    return (
+        <Secao
+            titulo="Consentimento para dados de saúde"
+            descricao="Você autorizou a PLAD a tratar os seus dados de saúde, que é o que permite guardar a triagem e se inscrever em reuniões. Você pode retirar essa autorização quando quiser."
+        >
+            <Botao variante="perigo-contorno" bloco onClick={() => setPasso(1)}>
+                Retirar meu consentimento
+            </Botao>
+
+            <ModalConfirmacao
+                aberto={passo === 1}
+                titulo="Retirar o consentimento para dados de saúde?"
+                descricao="Veja o que acontece antes de decidir."
+                rotuloConfirmar="Continuar"
+                rotuloCancelar="Manter meu consentimento"
+                onConfirmar={() => setPasso(2)}
+                onCancelar={fechar}
+            >
+                <div className="space-y-3 text-sm text-gray-700">
+                    <div>
+                        <p className="font-semibold text-black">O que é apagado</p>
+                        <ul className="mt-1 list-disc space-y-1 pl-5">
+                            <li>A sua triagem e todas as respostas.</li>
+                            <li>As suas inscrições em reuniões que ainda não começaram.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <p className="font-semibold text-black">O que fica</p>
+                        <ul className="mt-1 list-disc space-y-1 pl-5">
+                            <li>O registro de que você deu o consentimento e de quando o retirou, como prova.</li>
+                            <li>As inscrições em reuniões que já começaram ou já aconteceram.</li>
+                            <li>O registro de quem leu os seus dados ("Quem viu meus dados").</li>
+                        </ul>
+                    </div>
+                    <p>
+                        Os psicólogos deixam de ver a sua triagem. Para enviar a triagem ou se inscrever em uma reunião de novo, você
+                        vai precisar dar o consentimento outra vez.
+                    </p>
+                </div>
+            </ModalConfirmacao>
+
+            <ModalConfirmacao
+                aberto={passo === 2}
+                titulo="Tem certeza?"
+                descricao="Isso não tem volta: a triagem apagada não pode ser recuperada."
+                rotuloConfirmar="Retirar meu consentimento"
+                rotuloCancelar="Manter meu consentimento"
+                perigo
+                carregando={retirando}
+                confirmarDesabilitado={!entendeu}
+                onConfirmar={() => void retirar()}
+                onCancelar={fechar}
+            >
+                <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-sm text-gray-800">
+                    <input
+                        type="checkbox"
+                        checked={entendeu}
+                        onChange={(e) => setEntendeu(e.target.checked)}
+                        className="mt-0.5 size-6 shrink-0 accent-plad"
+                    />
+                    <span>Entendi que a minha triagem e as inscrições em reuniões futuras serão apagadas.</span>
+                </label>
+                {erro && (
+                    <p role="alert" className="text-sm text-erro">
+                        {erro}
+                    </p>
+                )}
+            </ModalConfirmacao>
+        </Secao>
+    )
+}
+
 function ExcluirConta() {
     const { sair } = useSessao()
     const { avisar } = useToast()
@@ -339,6 +462,8 @@ export default function MinhaConta() {
                 <ExportarDados />
                 {/* Só o dependente tem log de acessos (o back responde 403 aos outros papéis) */}
                 {me.type_user === 'dependente' && <QuemViuMeusDados />}
+                {/* Só o dependente dá (e retira) o consentimento de saúde; o back responde 403 aos outros papéis */}
+                {me.type_user === 'dependente' && <ConsentimentoDeSaude pendente={me.health_consent_pending !== false} />}
                 {/* O back responde 403 à exclusão de um admin; a seção nem aparece */}
                 {me.type_user !== 'admin' && <ExcluirConta />}
             </div>

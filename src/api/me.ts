@@ -104,6 +104,8 @@ export interface MeExportConsentDTO {
     document: string
     version: string
     accepted_at: string
+    // quando o aceite foi retirado; null enquanto vale. Hoje só o de saúde pode ser retirado (DELETE /me/consents/health)
+    revoked_at: string | null
     ip: string
 }
 
@@ -156,6 +158,16 @@ export function acceptConsents(data: ConsentRequestDTO) {
  */
 export function acceptHealthConsent(data: HealthConsentRequestDTO) {
     return apiRequest<void>('POST', '/me/consents/health', data)
+}
+
+/**
+ * DELETE /me/consents/health → 204 (também se não havia o que retirar) | 403 (só dependente). Numa transação, o backend
+ * marca o aceite como retirado (a linha fica como prova e aparece no export), apaga a triagem e as respostas e cancela
+ * as inscrições em reuniões que ainda não começaram (as já começadas ficam). Depois, `health_consent_pending` volta a
+ * true e `has_triage` a false. Não tem volta: a triagem apagada não é recuperada
+ */
+export function revokeHealthConsent() {
+    return apiRequest<void>('DELETE', '/me/consents/health')
 }
 
 /**

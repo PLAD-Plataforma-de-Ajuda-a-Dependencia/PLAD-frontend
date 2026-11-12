@@ -14,4 +14,11 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
+  build: {
+    // Só o pedaço da sala ao vivo passa de 500 kB (~634 kB em 2026-11, ~80% dele é o SDK livekit-client, que sozinho
+    // tem ~500 kB e não dá para dividir). Ele já é carregado sob demanda (React.lazy em App.tsx): só quem abre
+    // /reuniao/:id baixa. O bundle principal fica em ~275 kB. O limite fica logo acima da sala para o aviso continuar
+    // valendo para qualquer outro pedaço que cresça
+    chunkSizeWarningLimit: 650,
+  },
 })

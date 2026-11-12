@@ -106,6 +106,10 @@ export default function ConsentimentoSaude() {
                         inscrever em reuniões.</strong> Você pode dizer "agora não" e voltar quando quiser; nada é guardado até lá.
                     </p>
                     <p>
+                        Você pode retirar este consentimento quando quiser, em "Minha conta". Retirar apaga a sua triagem e cancela as
+                        inscrições em reuniões que ainda não começaram.
+                    </p>
+                    <p>
                         Para saber quem vê o quê, e como você acompanha cada leitura, veja <LinkDocumento documento="protecao" />.
                     </p>
                 </div>
