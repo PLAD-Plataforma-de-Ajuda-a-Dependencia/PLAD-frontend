@@ -5,7 +5,9 @@ import { ApiError, errosPorCampo, getErrorMessage } from '../api/client'
 import type { CadastroEtapa1 } from '../api/auth'
 import Botao from '../components/Botao'
 import Campo from '../components/Campo'
+import EntradaComMascara from '../components/EntradaComMascara'
 import LayoutPagina from '../components/LayoutPagina'
+import { mascararCrp } from '../components/mascaras'
 
 // O tipo do registro não é um campo: o cadastro só aceita CRP (o backend recusa CRM), e "CRP" aparece fixo ao lado do número
 interface PsychologistFormData {
@@ -39,6 +41,10 @@ export default function PsychologistRegister({ etapa1, onVoltar }: PsychologistR
         const { name, value } = e.target
         setFormData((prev) => ({ ...prev, [name]: value }))
     }
+
+    // O CRP aceita só dígitos e ganha a barra depois dos dois da região ("06/123456"); vai assim mesmo para o backend,
+    // que guarda só os dígitos
+    const handleCrp = (valor: string) => setFormData((prev) => ({ ...prev, crmCrpNumber: valor }))
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
@@ -125,14 +131,16 @@ export default function PsychologistRegister({ etapa1, onVoltar }: PsychologistR
                     </span>
                     <Campo className="min-w-0 flex-1" rotulo="Número do registro no CRP" rotuloOculto erro={errosCampo.crm_crp_number}>
                         {(controle) => (
-                            <input
+                            <EntradaComMascara
                                 {...controle}
-                                type="text"
+                                mascara={mascararCrp}
                                 name="crmCrpNumber"
                                 placeholder="Número do registro no CRP (ex.: 06/123456)"
+                                autoComplete="off"
+                                maxLength={9}
                                 required
                                 value={formData.crmCrpNumber}
-                                onChange={handleChange}
+                                onValor={handleCrp}
                             />
                         )}
                     </Campo>

@@ -15,7 +15,7 @@ import EstadoVazio from '../components/EstadoVazio'
 import LayoutPainel from '../components/LayoutPainel'
 import ListaDeTriagens from '../components/ListaDeTriagens'
 import Paginacao from '../components/Paginacao'
-import { formatarData, formatarDataHora } from '../components/formatar'
+import { formatarData, formatarDataHora, formatarRegistro } from '../components/formatar'
 import useListaPaginada from '../components/useListaPaginada'
 
 /**
@@ -189,7 +189,7 @@ function LinhaDePsicologo({ psicologo }: { psicologo: AdminPsychologistResponseD
             <div className="min-w-0">
                 <p className="break-words font-outfit text-base font-semibold text-black">{psicologo.real_name}</p>
                 <p className="text-sm text-texto-suave">
-                    {psicologo.credential_type} {psicologo.crm_crp_number} · cadastrado em {formatarData(psicologo.created_at)}
+                    {formatarRegistro(psicologo)} · cadastrado em {formatarData(psicologo.created_at)}
                 </p>
             </div>
             <SeloDeValidacao validado={psicologo.is_validated} />

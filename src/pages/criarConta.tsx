@@ -7,9 +7,11 @@ import type { CadastroEtapa1, Sex, TipoDeCadastro } from '../api/auth'
 import Botao from '../components/Botao'
 import Campo from '../components/Campo'
 import CampoSenha from '../components/CampoSenha'
+import EntradaComMascara from '../components/EntradaComMascara'
 import EscolhaTipoConta from '../components/EscolhaTipoConta'
 import LayoutPagina from '../components/LayoutPagina'
 import LinkDocumento from '../components/LinkDocumento'
+import { lerData, mascararData } from '../components/mascaras'
 import useContagem from '../components/useContagem'
 import { destinoPorPapel, useSessao } from '../session/SessaoContext'
 import PsicologoSolicita from './psicologoSolicita'
@@ -60,8 +62,6 @@ export default function CriarConta() {
     // Etapa 1 do psicólogo, guardada só em memória: no state do router a senha ficaria no histórico do navegador
     const [etapa1Psicologo, setEtapa1Psicologo] = useState<CadastroEtapa1 | null>(null)
     const [limite, setLimite] = useState(false)
-    // A data de nascimento só vira campo de data (com o seletor) quando recebe foco: vazia, mostra o placeholder
-    const [dataFocada, setDataFocada] = useState(false)
     const { restante, iniciar } = useContagem()
     const formulario = useRef<HTMLFormElement>(null)
 
@@ -114,6 +114,13 @@ export default function CriarConta() {
             setError('Selecione o gênero.')
             return
         }
+        // A data digitada (dd/mm/aaaa) só vira yyyy-MM-dd aqui; uma data incompleta ou que não existe (31/02) fica no campo
+        const nascimento = lerData(formData.birthDate)
+        if ('erro' in nascimento) {
+            setError(null)
+            setErrosCampo({ birth_date: nascimento.erro })
+            return
+        }
         if (!aceitou) {
             setError('Aceite os Termos de Uso e a Política de Privacidade para criar a conta.')
             return
@@ -122,7 +129,7 @@ export default function CriarConta() {
             real_name: formData.realName.trim(),
             email: formData.email.trim(),
             password: formData.password,
-            birth_date: formData.birthDate,
+            birth_date: nascimento.iso,
             gender: formData.gender,
             type_user: tipo,
             ...ACEITE_VIGENTE,
@@ -226,19 +233,19 @@ export default function CriarConta() {
                     erro={errosCampo.password}
                 />
 
-                <Campo rotulo="Data de nascimento" rotuloOculto erro={errosCampo.birth_date}>
+                {/* Texto com máscara, não o campo nativo de data: aquele segue o idioma do navegador (mm/dd/yyyy em inglês) */}
+                <Campo rotulo="Data de nascimento (dd/mm/aaaa)" rotuloOculto erro={errosCampo.birth_date}>
                     {(controle) => (
-                        <input
+                        <EntradaComMascara
                             {...controle}
-                            type={dataFocada || formData.birthDate ? 'date' : 'text'}
+                            mascara={mascararData}
                             name="birthDate"
-                            placeholder="Data de nascimento"
+                            placeholder="Data de nascimento (dd/mm/aaaa)"
                             autoComplete="bday"
+                            maxLength={10}
                             required
                             value={formData.birthDate}
-                            onChange={handleChange}
-                            onFocus={() => setDataFocada(true)}
-                            onBlur={() => setDataFocada(false)}
+                            onValor={(valor) => setFormData((prev) => ({ ...prev, birthDate: valor }))}
                         />
                     )}
                 </Campo>

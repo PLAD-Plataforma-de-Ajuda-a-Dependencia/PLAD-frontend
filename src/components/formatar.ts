@@ -1,20 +1,26 @@
 import { format, parseISO } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
 import type { MeetingHostDTO } from '../api/meetings'
 
-// Os Instants do backend chegam em ISO-8601 (UTC); a tela os mostra no fuso do navegador, em português.
+// Os Instants do backend chegam em ISO-8601 (UTC); a tela os mostra no fuso do navegador, no formato brasileiro.
 
-/** "7 de nov de 2026" */
+/** "07/11/2026" */
 export function formatarData(iso: string): string {
-    return format(parseISO(iso), "d 'de' MMM 'de' yyyy", { locale: ptBR })
+    return format(parseISO(iso), 'dd/MM/yyyy')
 }
 
-/** "7 de nov de 2026 às 20:45" */
+/** "07/11/2026 às 20:45" */
 export function formatarDataHora(iso: string): string {
-    return format(parseISO(iso), "d 'de' MMM 'de' yyyy 'às' HH:mm", { locale: ptBR })
+    return format(parseISO(iso), "dd/MM/yyyy 'às' HH:mm")
 }
 
-/** "CRP 06123456": o registro do anfitrião como o backend o guardou (letras e dígitos, sem barra). Contas antigas: "CRM …" */
-export function formatarRegistro(host: MeetingHostDTO): string {
-    return `${host.credential_type} ${host.crm_crp_number}`
+/**
+ * "CRP 06/123456": o backend guarda o registro só com letras e dígitos ("06123456"), e a tela devolve a barra entre a
+ * região (os 2 primeiros dígitos) e o número. Qualquer outro valor sai como foi guardado (contas antigas: "CRM …").
+ */
+export function formatarRegistro(registro: Pick<MeetingHostDTO, 'credential_type' | 'crm_crp_number'>): string {
+    const { credential_type: tipo, crm_crp_number: numero } = registro
+    if (tipo === 'CRP' && /^\d{3,}$/.test(numero)) {
+        return `CRP ${numero.slice(0, 2)}/${numero.slice(2)}`
+    }
+    return `${tipo} ${numero}`
 }

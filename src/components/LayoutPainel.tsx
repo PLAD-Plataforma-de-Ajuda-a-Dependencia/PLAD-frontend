@@ -65,7 +65,8 @@ export default function LayoutPainel({ titulo, children }: { titulo?: string; ch
                     fica preso à altura da janela (sticky), para os três pontos do MenuConta estarem sempre à vista */}
                 <aside className="hidden w-24 shrink-0 md:block">
                     <div className="sticky top-0 flex h-screen max-h-full flex-col py-8">
-                        <span className="mb-10 pl-3.5 font-roboto text-xl font-bold text-black">PLAD</span>
+                        {/* No mesmo eixo dos ícones da navegação, que são centralizados na coluna */}
+                        <span className="mb-10 self-center font-roboto text-xl font-bold text-black">PLAD</span>
 
                         <nav aria-label="Navegação principal" className="flex flex-1 flex-col items-center gap-6">
                             {itens.map((item) => (

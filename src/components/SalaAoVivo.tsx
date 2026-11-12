@@ -252,11 +252,14 @@ function Conteudo({
                 />
             </section>
 
+            {/* O painel tem a altura do palco: no lg, `contain-size` faz o conteúdo não esticar a linha, e o painel fica
+                com a altura da coluna do vídeo (o `stretch` do flex); abaixo do lg, 28rem embaixo do vídeo. Dentro dele, o
+                chat ou a lista de inscritos ocupa o que sobra e rola sozinho */}
             {painelAberto && (
                 <aside
                     ref={painelRef}
                     aria-label={ehAnfitriao ? 'Chat e inscritos' : 'Chat'}
-                    className="w-full shrink-0 space-y-4 rounded-cartao bg-sala-barra p-4 text-white lg:w-96"
+                    className="flex h-112 w-full shrink-0 flex-col gap-4 rounded-cartao bg-sala-barra p-4 text-white lg:h-auto lg:w-96 lg:contain-size"
                 >
                     {ehAnfitriao ? (
                         <>
@@ -271,17 +274,20 @@ function Conteudo({
                                     { id: 'chat', rotulo: 'Chat', icone: MessageSquare },
                                 ]}
                             />
+                            {/* O atributo `hidden` continua escondendo mesmo com `flex`: o preflight usa display:none !important */}
                             <div
                                 role="tabpanel"
                                 id={`${idBase}-painel-chat`}
                                 aria-labelledby={`${idBase}-aba-chat`}
                                 hidden={aba !== 'chat'}
+                                className="flex min-h-0 flex-1 flex-col"
                             >
                                 <ChatDaSala
                                     mensagens={chat.chatMessages}
                                     enviando={chat.isSending}
                                     hostIdentity={hostIdentity}
                                     onEnviar={enviarMensagem}
+                                    visivel={aba === 'chat'}
                                 />
                             </div>
                             <div
@@ -289,6 +295,7 @@ function Conteudo({
                                 id={`${idBase}-painel-inscritos`}
                                 aria-labelledby={`${idBase}-aba-inscritos`}
                                 hidden={aba !== 'inscritos'}
+                                className="min-h-0 flex-1 overflow-y-auto pr-1"
                             >
                                 <PainelDoAnfitriao
                                     reuniaoId={reuniao.id}

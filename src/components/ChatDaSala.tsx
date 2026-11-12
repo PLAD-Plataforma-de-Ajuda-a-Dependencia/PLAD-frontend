@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { format } from 'date-fns'
 import { Send } from 'lucide-react'
@@ -16,6 +16,8 @@ interface ChatDaSalaProps {
     hostIdentity: string
     /** Devolve `true` se enviou; se falhou, o texto digitado fica na caixa para tentar de novo */
     onEnviar: (texto: string) => Promise<boolean>
+    /** O chat está à vista (no anfitrião, a aba Chat): ao voltar a aparecer, a lista desce até a última mensagem */
+    visivel?: boolean
 }
 
 /**
@@ -24,13 +26,16 @@ interface ChatDaSalaProps {
  * só o texto digitado: nenhum nome (e nunca o nome real de um dependente) entra na mensagem; o remetente vem da própria
  * LiveKit (apelido do dependente, nome do psicólogo, definidos no token).
  */
-export default function ChatDaSala({ mensagens, enviando, hostIdentity, onEnviar }: ChatDaSalaProps) {
+export default function ChatDaSala({ mensagens, enviando, hostIdentity, onEnviar, visivel = true }: ChatDaSalaProps) {
     const [texto, setTexto] = useState('')
-    const fimRef = useRef<HTMLLIElement>(null)
+    const listaRef = useRef<HTMLUListElement>(null)
 
-    useEffect(() => {
-        fimRef.current?.scrollIntoView({ block: 'nearest' })
-    }, [mensagens.length])
+    // A lista rola sozinha até a última mensagem. Rola só ela (scrollTop), não a página: um scrollIntoView também
+    // levaria a janela junto, e no celular tiraria o vídeo da tela a cada mensagem
+    useLayoutEffect(() => {
+        const lista = listaRef.current
+        if (lista && visivel) lista.scrollTop = lista.scrollHeight
+    }, [mensagens.length, visivel])
 
     async function enviar(e: FormEvent) {
         e.preventDefault()
@@ -40,9 +45,10 @@ export default function ChatDaSala({ mensagens, enviando, hostIdentity, onEnviar
     }
 
     return (
-        <div className="flex h-full min-h-72 flex-col gap-3">
+        // Ocupa a altura que o painel da sala der: a lista cresce e rola, e o campo de mensagem fica preso embaixo
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
             {/* role="log" é uma região ao vivo educada: o leitor de tela lê as mensagens novas */}
-            <ul role="log" aria-label="Mensagens do chat" className="max-h-96 flex-1 space-y-3 overflow-y-auto pr-1 text-sm lg:max-h-[28rem]">
+            <ul ref={listaRef} role="log" aria-label="Mensagens do chat" className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 text-sm">
                 {mensagens.length === 0 && <li className="text-gray-300">Ninguém escreveu ainda. Diga um olá.</li>}
                 {mensagens.map((m, i) => (
                     <li key={`${m.timestamp}-${i}`}>
@@ -57,10 +63,9 @@ export default function ChatDaSala({ mensagens, enviando, hostIdentity, onEnviar
                         <p className="whitespace-pre-wrap break-words text-gray-100">{m.message}</p>
                     </li>
                 ))}
-                <li ref={fimRef} aria-hidden="true" />
             </ul>
 
-            <form onSubmit={enviar} className="flex gap-2">
+            <form onSubmit={enviar} className="flex shrink-0 gap-2">
                 <label htmlFor="mensagem-da-sala" className="sr-only">
                     Mensagem para a sala
                 </label>

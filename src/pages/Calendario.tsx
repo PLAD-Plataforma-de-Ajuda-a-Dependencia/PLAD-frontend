@@ -65,6 +65,7 @@ import Campo from '../components/Campo'
 import Card from '../components/Card'
 import Carregando from '../components/Carregando'
 import EstadoErro from '../components/EstadoErro'
+import EntradaComMascara from '../components/EntradaComMascara'
 import EstadoVazio from '../components/EstadoVazio'
 import LayoutPainel from '../components/LayoutPainel'
 import ModalConfirmacao from '../components/ModalConfirmacao'
@@ -72,6 +73,7 @@ import TermoDeParticipacao from '../components/TermoDeParticipacao'
 import { useToast } from '../components/ToastContext'
 import useAgora from '../components/useAgora'
 import { formatarRegistro } from '../components/formatar'
+import { isoParaData, lerData, lerHora, mascararData, mascararHora } from '../components/mascaras'
 import useArmadilhaFoco from '../components/useArmadilhaFoco'
 import { useSessao } from '../session/SessaoContext'
 
@@ -996,7 +998,8 @@ function FormularioReuniao({ reuniao, diaInicial, onFechar, onSalvo }: Formulari
     const idTitulo = useId()
     const [titulo, setTitulo] = useState(reuniao?.titulo ?? '')
     const [descricao, setDescricao] = useState(reuniao?.descricao ?? '')
-    const [data, setData] = useState(reuniao?.data ?? diaInicial)
+    // Data e horas são texto com máscara (dd/mm/aaaa, hh:mm 24 h): os campos nativos seguem o idioma do navegador
+    const [data, setData] = useState(() => isoParaData(reuniao?.data ?? diaInicial))
     const [inicio, setInicio] = useState(reuniao?.horaInicio ?? '')
     const [fim, setFim] = useState(reuniao?.horaFim ?? '')
     const [capacidade, setCapacidade] = useState(reuniao ? String(reuniao.capacidade) : '')
@@ -1018,13 +1021,20 @@ function FormularioReuniao({ reuniao, diaInicial, onFechar, onSalvo }: Formulari
         if (enviando) return
 
         const locais: Partial<Record<CamposReuniao, string>> = {}
+        const dataLida = lerData(data)
+        const inicioLido = lerHora(inicio)
+        const fimLido = lerHora(fim)
         if (!titulo.trim()) locais.title = 'Campo obrigatório.'
         if (!data) locais.data = 'Campo obrigatório.'
+        else if ('erro' in dataLida) locais.data = dataLida.erro
         if (!inicio) locais.starts_at = 'Campo obrigatório.'
+        else if ('erro' in inicioLido) locais.starts_at = inicioLido.erro
         if (!fim) locais.ends_at = 'Campo obrigatório.'
+        else if ('erro' in fimLido) locais.ends_at = fimLido.erro
         if (!capacidade) locais.capacity = 'Campo obrigatório.'
         setErroGeral(null)
-        if (Object.keys(locais).length > 0) {
+        // Os três `'erro' in` já estão em `locais`; repetidos aqui, garantem ao TypeScript que daqui para baixo tudo foi lido
+        if (Object.keys(locais).length > 0 || 'erro' in dataLida || 'erro' in inicioLido || 'erro' in fimLido) {
             setErros(locais)
             focarPrimeiroInvalido()
             return
@@ -1034,8 +1044,8 @@ function FormularioReuniao({ reuniao, diaInicial, onFechar, onSalvo }: Formulari
             title: titulo.trim(),
             description: descricao.trim() || null,
             // data e horas digitadas são do fuso do navegador; o backend recebe o instante
-            starts_at: new Date(`${data}T${inicio}`).toISOString(),
-            ends_at: new Date(`${data}T${fim}`).toISOString(),
+            starts_at: new Date(`${dataLida.iso}T${inicioLido.hora}`).toISOString(),
+            ends_at: new Date(`${dataLida.iso}T${fimLido.hora}`).toISOString(),
             capacity: Number(capacidade),
         }
 
@@ -1115,12 +1125,15 @@ function FormularioReuniao({ reuniao, diaInicial, onFechar, onSalvo }: Formulari
 
                     <Campo rotulo="Data" erro={erros.data}>
                         {(c) => (
-                            <input
+                            <EntradaComMascara
                                 {...c}
-                                type="date"
+                                mascara={mascararData}
                                 name="date"
+                                placeholder="dd/mm/aaaa"
+                                autoComplete="off"
+                                maxLength={10}
                                 value={data}
-                                onChange={(e) => setData(e.target.value)}
+                                onValor={setData}
                                 aria-required="true"
                             />
                         )}
@@ -1129,24 +1142,30 @@ function FormularioReuniao({ reuniao, diaInicial, onFechar, onSalvo }: Formulari
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <Campo rotulo="Início" erro={erros.starts_at} ajuda="Pelo menos 60 minutos a partir de agora.">
                             {(c) => (
-                                <input
+                                <EntradaComMascara
                                     {...c}
-                                    type="time"
+                                    mascara={mascararHora}
                                     name="starts_at"
+                                    placeholder="hh:mm"
+                                    autoComplete="off"
+                                    maxLength={5}
                                     value={inicio}
-                                    onChange={(e) => setInicio(e.target.value)}
+                                    onValor={setInicio}
                                     aria-required="true"
                                 />
                             )}
                         </Campo>
                         <Campo rotulo="Fim" erro={erros.ends_at} ajuda="A reunião dura de 15 minutos a 3 horas.">
                             {(c) => (
-                                <input
+                                <EntradaComMascara
                                     {...c}
-                                    type="time"
+                                    mascara={mascararHora}
                                     name="ends_at"
+                                    placeholder="hh:mm"
+                                    autoComplete="off"
+                                    maxLength={5}
                                     value={fim}
-                                    onChange={(e) => setFim(e.target.value)}
+                                    onValor={setFim}
                                     aria-required="true"
                                 />
                             )}
