@@ -1,7 +1,6 @@
-import { useId, useRef, type FormEvent, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { useId, type FormEvent, type ReactNode } from 'react'
 import Botao from './Botao'
-import useArmadilhaFoco from './useArmadilhaFoco'
+import Modal from './Modal'
 
 interface ModalConfirmacaoProps {
     aberto: boolean
@@ -16,13 +15,14 @@ interface ModalConfirmacaoProps {
     confirmarDesabilitado?: boolean
     onConfirmar: () => void
     onCancelar: () => void
-    /** Conteúdo extra entre o texto e os botões (um campo de senha, por exemplo) */
+    /** Conteúdo extra entre o texto e os botões (um campo de senha, por exemplo); é o corpo que rola */
     children?: ReactNode
 }
 
 /**
- * Confirmação antes de uma ação sem volta ou que troca dados. Foco preso no modal, Esc e clique fora cancelam
- * (menos durante o envio) e o Enter confirma, porque o conteúdo é um formulário.
+ * Confirmação antes de uma ação sem volta ou que troca dados, sobre o `Modal` base: o título e o texto no cabeçalho, o
+ * conteúdo extra no corpo e os botões no rodapé fixo. Esc e clique fora cancelam (menos durante o envio); com conteúdo
+ * extra, o Enter num campo confirma, porque o corpo é um formulário.
  */
 export default function ModalConfirmacao({
     aberto,
@@ -37,65 +37,48 @@ export default function ModalConfirmacao({
     onCancelar,
     children,
 }: ModalConfirmacaoProps) {
-    const painel = useRef<HTMLDivElement>(null)
-    const idTitulo = useId()
-    const idDescricao = useId()
+    const idFormulario = useId()
 
-    useArmadilhaFoco(painel, aberto, () => {
-        if (!carregando) onCancelar()
-    })
-
-    if (!aberto) {
-        return null
+    const confirmar = () => {
+        if (!carregando && !confirmarDesabilitado) onConfirmar()
     }
 
     const enviar = (e: FormEvent) => {
         e.preventDefault()
-        if (!carregando && !confirmarDesabilitado) onConfirmar()
+        confirmar()
     }
 
-    return createPortal(
-        <div
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
-            onMouseDown={(e) => {
-                if (e.target === e.currentTarget && !carregando) onCancelar()
-            }}
+    return (
+        <Modal
+            aberto={aberto}
+            titulo={titulo}
+            descricao={descricao}
+            onFechar={onCancelar}
+            bloqueado={carregando}
+            rodape={
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <Botao variante="secundario" onClick={onCancelar} disabled={carregando}>
+                        {rotuloCancelar}
+                    </Botao>
+                    {/* Com conteúdo extra, o botão envia o formulário do corpo (o Enter num campo também); sem ele, só confirma */}
+                    <Botao
+                        type={children ? 'submit' : 'button'}
+                        form={children ? idFormulario : undefined}
+                        onClick={children ? undefined : confirmar}
+                        variante={perigo ? 'perigo' : 'primario'}
+                        carregando={carregando}
+                        disabled={confirmarDesabilitado}
+                    >
+                        {rotuloConfirmar}
+                    </Botao>
+                </div>
+            }
         >
-            <div
-                ref={painel}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby={idTitulo}
-                aria-describedby={descricao ? idDescricao : undefined}
-                tabIndex={-1}
-                className="w-full max-w-md rounded-cartao bg-white p-6 shadow-xl"
-            >
-                <form onSubmit={enviar} className="space-y-4">
-                    <h2 id={idTitulo} className="font-outfit text-xl font-semibold text-black">
-                        {titulo}
-                    </h2>
-                    {descricao && (
-                        <p id={idDescricao} className="text-sm text-gray-700">
-                            {descricao}
-                        </p>
-                    )}
+            {children && (
+                <form id={idFormulario} onSubmit={enviar} className="space-y-4">
                     {children}
-                    <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-                        <Botao variante="secundario" onClick={onCancelar} disabled={carregando}>
-                            {rotuloCancelar}
-                        </Botao>
-                        <Botao
-                            type="submit"
-                            variante={perigo ? 'perigo' : 'primario'}
-                            carregando={carregando}
-                            disabled={confirmarDesabilitado}
-                        >
-                            {rotuloConfirmar}
-                        </Botao>
-                    </div>
                 </form>
-            </div>
-        </div>,
-        document.body,
+            )}
+        </Modal>
     )
 }

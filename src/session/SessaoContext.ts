@@ -47,16 +47,10 @@ export function useSessao(): Sessao {
 }
 
 /**
- * Primeira tela de cada papel (sem triagem, o dependente começa por ela):
- * dependente sem triagem → /Triagem; dependente com triagem → /Calendario; psicólogo → /Calendario; admin → /adminPsico.
+ * Primeira tela (o painel) de cada papel: dependente e psicólogo → /Calendario; admin → /adminPsico.
+ * O dependente nunca é mandado para a triagem: ela é opcional (o backend não a exige para a inscrição, decisão 24) e
+ * aparece como um convite no painel e depois da inscrição.
  */
 export function destinoPorPapel(me: MeResponseDTO): string {
-    switch (me.type_user) {
-        case 'admin':
-            return '/adminPsico'
-        case 'psicologo':
-            return '/Calendario'
-        case 'dependente':
-            return me.has_triage ? '/Calendario' : '/Triagem'
-    }
+    return me.type_user === 'admin' ? '/adminPsico' : '/Calendario'
 }

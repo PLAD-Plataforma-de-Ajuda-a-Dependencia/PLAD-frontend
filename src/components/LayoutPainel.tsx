@@ -10,7 +10,7 @@ import Rodape from './Rodape'
 import useTitulo from './useTitulo'
 
 /**
- * Casca das páginas com navegação (Calendário, Triagens e Gestão), como no Figma: a página inteira é lilás (`plad-fundo`), a
+ * Casca das páginas com navegação (Calendário, Minhas reuniões e o detalhe, Triagens e Gestão), como no Figma: a página inteira é lilás (`plad-fundo`), a
  * sidebar fica direto sobre ela (sem coluna branca) e o conteúdo vai num painel branco arredondado, com o rodapé
  * embaixo. No celular (abaixo de `md`) a sidebar vira a barra fixa na parte de baixo, com alvos de pelo menos 44 px.
  * A página entrega o seu `<main id="conteudo" className="min-w-0 ...">` como `children`; o painel branco é daqui.
@@ -27,16 +27,17 @@ interface ItemBarra {
 }
 
 const PAINEL: ItemBarra = { to: '/Calendario', label: 'Painel', icone: House, cheio: true }
-const REUNIAO_DO_DEPENDENTE: ItemBarra = { to: '/minhas-reunioes', label: 'Reunião', icone: Video }
+// As reuniões de cada um: as inscritas (dependente) ou as criadas (psicólogo), e o detalhe de cada uma
+const REUNIOES: ItemBarra = { to: '/minhas-reunioes', label: 'Reuniões', icone: Video }
 // Triagens recebidas: do psicólogo (lê com o nome real). A Gestão é do admin: as rotas /admin/* respondem 403 aos outros
 const TRIAGENS: ItemBarra = { to: '/triagens', label: 'Triagens', icone: ClipboardCheck }
 const GESTAO: ItemBarra = { to: '/adminPsico', label: 'Gestão', icone: ClipboardList }
 
 // Cada papel vê só o que consegue abrir. O Calendário mostra os contadores de sobriedade do dependente, então o admin só
-// tem a Gestão. O psicólogo não tem "Reunião" porque não há página para ele: um item desabilitado não ajuda ninguém
+// tem a Gestão
 const ITENS_POR_PAPEL: Record<UserType, ItemBarra[]> = {
-    dependente: [PAINEL, REUNIAO_DO_DEPENDENTE],
-    psicologo: [PAINEL, TRIAGENS],
+    dependente: [PAINEL, REUNIOES],
+    psicologo: [PAINEL, REUNIOES, TRIAGENS],
     admin: [GESTAO],
 }
 
@@ -46,7 +47,13 @@ export default function LayoutPainel({ titulo, children }: { titulo?: string; ch
     const itens = me ? ITENS_POR_PAPEL[me.type_user] : []
     useTitulo(titulo)
 
-    const ativo = (item: ItemBarra) => item.to !== undefined && pathname.toLowerCase() === item.to.toLowerCase()
+    // O item também fica aceso nas páginas de dentro dele (/minhas-reunioes/12 acende "Reuniões")
+    const ativo = (item: ItemBarra) => {
+        if (item.to === undefined) return false
+        const caminho = pathname.toLowerCase()
+        const destino = item.to.toLowerCase()
+        return caminho === destino || caminho.startsWith(`${destino}/`)
+    }
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-plad-fundo font-roboto text-slate-900">

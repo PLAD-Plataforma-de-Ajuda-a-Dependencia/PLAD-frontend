@@ -48,6 +48,10 @@
     --radius-cartao: 1.125rem;
     --radius-painel: 1.5rem;
 
+    /* Espaçamento: a grade única do popup do dia no Calendário (margem interna, distância entre linhas e entre reuniões).
+       Gera p-popup, gap-popup, space-y-popup... */
+    --spacing-popup: 0.75rem;
+
     /* Sombras */
     --shadow-rodape: 0 -8px 16px -6px rgb(0 0 0 / 0.15);
     --shadow-cartao: 0 1px 2px 0 rgb(0 0 0 / 0.05);

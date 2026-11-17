@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
-import { createPortal } from 'react-dom'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
     addDays,
@@ -9,95 +7,55 @@ import {
     endOfMonth,
     endOfWeek,
     format,
-    isBefore,
     isSameDay,
     isSameMonth,
     isToday,
     parseISO,
-    startOfDay,
     startOfMonth,
     startOfWeek,
     subMonths,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
-    Ban,
     CalendarDays,
-    Check,
     ChevronLeft,
     ChevronRight,
+    ClipboardList,
     Clock,
     DoorOpen,
     Hexagon,
     HandCoins,
-    Maximize2,
-    Minimize2,
-    Pencil,
     Plus,
-    User,
-    UserMinus,
     UserPlus,
-    Users,
 } from 'lucide-react'
 
-import { ApiError, errosPorCampo } from '../api/client'
-import { ACEITE_DE_PARTICIPACAO_VIGENTE } from '../api/consentimento'
+import { ApiError } from '../api/client'
 import {
     aberturaDaSala,
-    cancelMeeting,
-    cancelRegistration,
-    createMeeting,
-    endMeeting,
+    aceitaInscricao,
     getMeeting,
     listMeetings,
-    listParticipants,
-    mensagemDeInscricao,
     podeEntrar,
-    registerForMeeting,
+    seloDaReuniao,
     textoDeVagas,
-    updateMeeting,
     vagasRestantes,
 } from '../api/meetings'
-import type { MeetingParticipantDTO, MeetingRequestDTO, MeetingResponseDTO, MeetingStatus } from '../api/meetings'
+import type { MeetingResponseDTO } from '../api/meetings'
 import ApelidoDestaque from '../components/ApelidoDestaque'
 import Botao from '../components/Botao'
-import Campo from '../components/Campo'
 import Card from '../components/Card'
 import Carregando from '../components/Carregando'
 import EstadoErro from '../components/EstadoErro'
-import EntradaComMascara from '../components/EntradaComMascara'
 import EstadoVazio from '../components/EstadoVazio'
+import FormularioReuniao from '../components/FormularioReuniao'
 import LayoutPainel from '../components/LayoutPainel'
-import ModalConfirmacao from '../components/ModalConfirmacao'
 import TermoDeParticipacao from '../components/TermoDeParticipacao'
 import { useToast } from '../components/ToastContext'
 import useAgora from '../components/useAgora'
-import { formatarRegistro } from '../components/formatar'
-import { isoParaData, lerData, lerHora, mascararData, mascararHora } from '../components/mascaras'
-import useArmadilhaFoco from '../components/useArmadilhaFoco'
+import useInscricao from '../components/useInscricao'
+import { classeBotao } from '../components/estilos'
+import { formatarHorario } from '../components/formatar'
 import { useSessao } from '../session/SessaoContext'
-
-/**
- * Uma reunião marcada em uma data, já no fuso do navegador (o backend manda instantes em UTC: `daReuniaoDaApi`).
- * As reuniões vêm de GET /meetings, buscadas para o intervalo que a grade mostra (do primeiro ao último dia).
- */
-export interface Reuniao {
-    id: string
-    data: string // ISO "yyyy-MM-dd", no fuso local
-    titulo: string
-    horaInicio: string // "18:30", no fuso local
-    horaFim: string // "22:30", no fuso local
-    inicio: string // instante ISO-8601 do início, para saber se já começou
-    fim: string // instante ISO-8601 do fim, para saber se já terminou
-    responsavel?: string // nome do psicólogo anfitrião
-    registro?: string // registro dele no conselho ("CRP 06123456"), para o dependente conferir quem conduz
-    status: MeetingStatus // cancelada aparece riscada; encerrada, com o aviso "Encerrada"
-    descricao: string | null
-    capacidade: number
-    minha: boolean // quem está vendo é o anfitrião
-    inscritos: number // quantos dependentes estão inscritos: todo papel vê só este número
-    inscritoPorMim: boolean // quem está vendo é um dependente inscrito
-}
 
 /**
  * Dados dos contadores do topo. Por enquanto têm valores de teste;
@@ -121,7 +79,7 @@ const CONTADORES_TESTE: Contadores = {
 
 interface CalendarioProps {
     contadores?: Contadores
-    onDiaClick?: (data: Date, reunioesDoDia: Reuniao[]) => void
+    onDiaClick?: (data: Date, reunioesDoDia: MeetingResponseDTO[]) => void
 }
 
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -142,39 +100,22 @@ function inicioDoDiaEmSaoPaulo(dia: string): string {
     return new Date(`${dia}T00:00:00${deslocamento}`).toISOString()
 }
 
-/** O instante do backend (UTC) vira data e hora no fuso do navegador, que é o que a pessoa espera ver */
-function daReuniaoDaApi(m: MeetingResponseDTO): Reuniao {
-    const inicio = parseISO(m.starts_at)
-    return {
-        id: String(m.id),
-        data: format(inicio, 'yyyy-MM-dd'),
-        titulo: m.title,
-        horaInicio: format(inicio, 'HH:mm'),
-        horaFim: format(parseISO(m.ends_at), 'HH:mm'),
-        inicio: m.starts_at,
-        fim: m.ends_at,
-        responsavel: m.host.name,
-        registro: formatarRegistro(m.host),
-        status: m.status,
-        descricao: m.description,
-        capacidade: m.capacity,
-        minha: m.owned_by_me,
-        inscritos: m.registered_count,
-        inscritoPorMim: m.registered_by_me,
-    }
-}
-
 function capitalizar(texto: string) {
     return texto.charAt(0).toUpperCase() + texto.slice(1)
 }
 
+/**
+ * O painel (dependente e psicólogo): os contadores, o calendário de reuniões do mês e, para o psicólogo, "Criar reunião".
+ * Cada dia com reunião abre um popup curto (`PopupReuniao`); o que se faz com a reunião (editar, cancelar, encerrar,
+ * cancelar a inscrição, ver os inscritos) fica no detalhe, em /minhas-reunioes/:id.
+ */
 export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }: CalendarioProps) {
     const [mesAtual, setMesAtual] = useState(() => new Date())
     const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null)
     // Resultado da última busca e para qual intervalo ele vale (`chave`): enquanto a chave atual não tem resultado,
     // a tela está carregando. Assim o efeito só grava estado quando a resposta chega, nunca de forma síncrona
-    const [carga, setCarga] = useState<{ chave: string; reunioes: Reuniao[]; erro: string | null } | null>(null)
-    // Muda para pedir a busca de novo (Tentar de novo, e depois de criar, editar ou cancelar uma reunião)
+    const [carga, setCarga] = useState<{ chave: string; reunioes: MeetingResponseDTO[]; erro: string | null } | null>(null)
+    // Muda para pedir a busca de novo ("Tentar de novo")
     const [versaoCarga, setVersaoCarga] = useState(0)
 
     // Monta a grade de dias do mês (incluindo as pontas da semana anterior/seguinte,
@@ -206,7 +147,7 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
         const depoisDoUltimoDia = format(addDays(parseISO(ultimoDia), 1), 'yyyy-MM-dd')
         listMeetings(inicioDoDiaEmSaoPaulo(primeiroDia), inicioDoDiaEmSaoPaulo(depoisDoUltimoDia))
             .then((lista) => {
-                if (!obsoleta) setCarga({ chave: chaveCarga, reunioes: lista.map(daReuniaoDaApi), erro: null })
+                if (!obsoleta) setCarga({ chave: chaveCarga, reunioes: lista, erro: null })
             })
             .catch((erro: unknown) => {
                 if (obsoleta) return
@@ -226,24 +167,24 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
         return linhas
     }, [dias])
 
+    // O dia de uma reunião é o do início, no fuso do navegador (o backend manda instantes em UTC)
     function reunioesDoDia(dia: Date) {
-        return reunioes.filter((r) => isSameDay(parseISO(r.data), dia))
+        return reunioes.filter((m) => isSameDay(parseISO(m.starts_at), dia))
     }
 
     // O backend é quem garante o acesso (403 para quem não é psicólogo); aqui é só para não mostrar botões inúteis
-    const { me, recarregarMe } = useSessao()
+    const { me } = useSessao()
     const navigate = useNavigate()
+    const { avisar } = useToast()
     const ehPsicologo = me?.type_user === 'psicologo'
     const ehDependente = me?.type_user === 'dependente'
-    // Um dia que já passou não recebe reunião nova (o início precisa ser daqui a pelo menos 60 minutos)
-    const podeCriarNoDia = (dia: Date) => ehPsicologo && !isBefore(dia, startOfDay(new Date()))
 
     function handleClickDia(dia: Date) {
         const doDia = reunioesDoDia(dia)
         const chave = format(dia, 'yyyy-MM-dd')
 
-        // O psicólogo também abre um dia vazio, para criar uma reunião nele
-        if (doDia.length === 0 && !podeCriarNoDia(dia)) {
+        // Só um dia com reunião abre o popup (criar reunião é o botão "Criar reunião", no topo)
+        if (doDia.length === 0) {
             setDiaSelecionado(null)
             return
         }
@@ -252,125 +193,34 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
         onDiaClick?.(dia, doDia)
     }
 
-    // Criar/editar (formulário) e cancelar/encerrar (confirmação): só um deles aberto por vez
-    const { avisar } = useToast()
-    const [formulario, setFormulario] = useState<{ reuniao: Reuniao | null; dia: string } | null>(null)
-    const [acaoPendente, setAcaoPendente] = useState<{ tipo: 'cancelar' | 'encerrar'; reuniao: Reuniao } | null>(null)
-    const [executando, setExecutando] = useState(false)
+    // Criar reunião (psicólogo): ao salvar, a pessoa vai para o detalhe da reunião nova
+    const [criando, setCriando] = useState(false)
 
-    function abrirFormulario(reuniao: Reuniao | null, dia: string) {
-        setDiaSelecionado(null)
-        setFormulario({ reuniao, dia })
-    }
-
-    function aoSalvar(editada: boolean) {
-        setFormulario(null)
-        avisar(editada ? 'Reunião atualizada.' : 'Reunião criada.', 'sucesso')
-        recarregar()
-    }
-
-    async function confirmarAcao() {
-        if (!acaoPendente || executando) return
-        const { tipo, reuniao } = acaoPendente
-        setExecutando(true)
-        try {
-            if (tipo === 'cancelar') {
-                await cancelMeeting(Number(reuniao.id))
-                avisar('Reunião cancelada.', 'sucesso')
-            } else {
-                await endMeeting(Number(reuniao.id))
-                avisar('Reunião encerrada.', 'sucesso')
-            }
-        } catch (erro) {
-            avisar(erro instanceof ApiError ? erro.message : 'Algo deu errado. Tente novamente em instantes.', 'erro')
-        } finally {
-            // Mesmo com erro a lista é buscada de novo: o motivo costuma ser a reunião ter mudado de situação
-            setExecutando(false)
-            setAcaoPendente(null)
-            setDiaSelecionado(null)
-            recarregar()
-        }
+    function aoCriar(reuniao: MeetingResponseDTO) {
+        setCriando(false)
+        avisar('Reunião criada.', 'sucesso')
+        navigate(`/minhas-reunioes/${reuniao.id}`)
     }
 
     // Inscrição (dependente): o popup troca de estado com a reunião que a API devolve, sem buscar o mês inteiro de novo
-    const [inscricaoEmCurso, setInscricaoEmCurso] = useState<string | null>(null) // id da reunião que está sendo alterada
-    const [inscricaoACancelar, setInscricaoACancelar] = useState<Reuniao | null>(null)
-    // A reunião cujo termo de participação está aberto, à espera do aceite
-    const [termoDaReuniao, setTermoDaReuniao] = useState<Reuniao | null>(null)
-
     function substituirReuniao(atualizada: MeetingResponseDTO) {
-        setCarga(
-            (atual) =>
-                atual && {
-                    ...atual,
-                    reunioes: atual.reunioes.map((r) => (r.id === String(atualizada.id) ? daReuniaoDaApi(atualizada) : r)),
-                },
-        )
+        setCarga((atual) => atual && { ...atual, reunioes: atual.reunioes.map((m) => (m.id === atualizada.id ? atualizada : m)) })
     }
 
     // Depois de um erro (reunião lotada, começou, cancelada) a tela pode estar velha: lê só essa reunião, em silêncio
-    async function atualizarReuniao(id: string) {
+    async function atualizarReuniao(id: number) {
         try {
-            substituirReuniao(await getMeeting(Number(id)))
+            substituirReuniao(await getMeeting(id))
         } catch {
             // fica como está; o mês é buscado de novo ao trocar de mês ou ao pedir "Tentar de novo"
         }
     }
 
-    // "Inscrever-se" não inscreve ainda. Primeiro vem o consentimento para tratar dado de saúde, em tela própria (o
-    // backend recusa a inscrição sem ele), e depois o termo de participação, que se aceita a cada inscrição
-    function pedirInscricao(reuniao: Reuniao) {
-        if (inscricaoEmCurso) return
-        if (me?.health_consent_pending) {
-            irParaConsentimentoDeSaude()
-            return
-        }
-        setTermoDaReuniao(reuniao)
-    }
-
-    function irParaConsentimentoDeSaude() {
-        navigate('/consentimento-saude', { state: { de: '/Calendario' } })
-    }
-
-    async function confirmarInscricao() {
-        if (!termoDaReuniao || inscricaoEmCurso) return
-        const reuniao = termoDaReuniao
-        setInscricaoEmCurso(reuniao.id)
-        try {
-            substituirReuniao(await registerForMeeting(Number(reuniao.id), ACEITE_DE_PARTICIPACAO_VIGENTE))
-            setTermoDaReuniao(null)
-            avisar('Inscrição feita.', 'sucesso')
-        } catch (erro) {
-            setTermoDaReuniao(null)
-            if (erro instanceof ApiError && erro.code === 'CONSENT_REQUIRED') {
-                // Falta o consentimento de saúde (o `me` estava velho) ou o termo mudou de versão: o `me` diz qual dos dois
-                const atual = await recarregarMe().catch(() => null)
-                if (atual?.health_consent_pending) irParaConsentimentoDeSaude()
-                else avisar(mensagemDeInscricao(erro), 'erro')
-            } else {
-                avisar(mensagemDeInscricao(erro), 'erro')
-                await atualizarReuniao(reuniao.id)
-            }
-        } finally {
-            setInscricaoEmCurso(null)
-        }
-    }
-
-    async function confirmarCancelarInscricao() {
-        if (!inscricaoACancelar || inscricaoEmCurso) return
-        const reuniao = inscricaoACancelar
-        setInscricaoEmCurso(reuniao.id)
-        try {
-            await cancelRegistration(Number(reuniao.id))
-            avisar('Inscrição cancelada.', 'sucesso')
-        } catch (erro) {
-            avisar(mensagemDeInscricao(erro), 'erro')
-        } finally {
-            await atualizarReuniao(reuniao.id)
-            setInscricaoEmCurso(null)
-            setInscricaoACancelar(null)
-        }
-    }
+    const inscricao = useInscricao({
+        origem: '/Calendario',
+        aoInscrever: substituirReuniao,
+        aoFalhar: (id) => void atualizarReuniao(id),
+    })
 
     return (
         // A barra lateral (com o menu da conta) e o rodapé vêm do LayoutPainel; por enquanto o Painel é esta página
@@ -378,6 +228,9 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
             {/* Conteúdo principal */}
             <main id="conteudo" tabIndex={-1} className="min-w-0 flex-1 px-3 py-6 focus:outline-none sm:px-4 md:px-10 md:py-10">
                 <ApelidoDestaque />
+
+                {/* A triagem é opcional (o backend não a exige para a inscrição, decisão 24): um convite, nunca um desvio */}
+                {me?.type_user === 'dependente' && me.has_triage === false && <CartaoTriagem idUsuario={me.id} />}
 
                 {/* Contadores: 1 coluna no celular, 2 de 640 px (o terceiro ocupa a linha) e 3 a partir de 1024 px */}
                 <section aria-label="Contadores" className="mb-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -432,8 +285,9 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
                         <h1 className="font-outfit text-2xl font-bold text-black">Calendário de reuniões</h1>
                         <p className="mt-1 text-sm text-texto-suave">Visualize as reuniões marcadas e participe</p>
                     </div>
+                    {/* A única ação principal do painel do psicólogo */}
                     {ehPsicologo && (
-                        <Botao onClick={() => abrirFormulario(null, format(new Date(), 'yyyy-MM-dd'))}>
+                        <Botao onClick={() => setCriando(true)}>
                             <Plus size={18} aria-hidden="true" />
                             Criar reunião
                         </Botao>
@@ -483,7 +337,7 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
                             titulo="Nenhuma reunião neste período"
                             descricao={
                                 ehPsicologo
-                                    ? 'Use "Criar reunião" ou clique em um dia para marcar a primeira.'
+                                    ? 'Use "Criar reunião" para marcar a primeira.'
                                     : 'Quando houver reuniões, elas aparecem marcadas no calendário.'
                             }
                         />
@@ -514,7 +368,6 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
 
                                     const doDia = reunioesDoDia(dia)
                                     const temReuniao = doDia.length > 0
-                                    const abre = temReuniao || podeCriarNoDia(dia) // dia que abre o popup
                                     const selecionado = diaSelecionado === chave
                                     const descricaoDia = `${format(dia, "d 'de' MMMM", { locale: ptBR })}${
                                         temReuniao ? `, ${doDia.length === 1 ? '1 reunião' : `${doDia.length} reuniões`}` : ''
@@ -526,7 +379,7 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
                                                 type="button"
                                                 onClick={() => handleClickDia(dia)}
                                                 aria-label={descricaoDia}
-                                                aria-expanded={abre ? selecionado : undefined}
+                                                aria-expanded={temReuniao ? selecionado : undefined}
                                                 aria-current={isToday(dia) ? 'date' : undefined}
                                                 className={[
                                                     'flex h-12 w-full items-start justify-start rounded-2xl p-1.5 text-left text-sm font-semibold transition md:h-16 md:p-3',
@@ -541,18 +394,12 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
                                                 {format(dia, 'd')}
                                             </button>
 
-                                            {selecionado && abre && (
+                                            {selecionado && temReuniao && (
                                                 <PopupReuniao
-                                                    dia={dia}
                                                     reunioes={doDia}
-                                                    onCriar={podeCriarNoDia(dia) ? () => abrirFormulario(null, chave) : undefined}
-                                                    onEditar={(r) => abrirFormulario(r, r.data)}
-                                                    onCancelar={(r) => setAcaoPendente({ tipo: 'cancelar', reuniao: r })}
-                                                    onEncerrar={(r) => setAcaoPendente({ tipo: 'encerrar', reuniao: r })}
                                                     ehDependente={ehDependente}
-                                                    inscricaoEmCurso={inscricaoEmCurso}
-                                                    onInscrever={pedirInscricao}
-                                                    onCancelarInscricao={setInscricaoACancelar}
+                                                    inscricaoEmCurso={inscricao.emCurso}
+                                                    onInscrever={inscricao.pedir}
                                                 />
                                             )}
                                         </div>
@@ -564,62 +411,72 @@ export default function Calendario({ contadores = CONTADORES_TESTE, onDiaClick }
                 </div>
             </main>
 
-            {formulario && (
+            {criando && (
                 <FormularioReuniao
-                    reuniao={formulario.reuniao}
-                    diaInicial={formulario.dia}
-                    onFechar={() => setFormulario(null)}
-                    onSalvo={aoSalvar}
+                    reuniao={null}
+                    diaInicial={format(new Date(), 'yyyy-MM-dd')}
+                    onFechar={() => setCriando(false)}
+                    onSalvo={aoCriar}
                 />
             )}
-
-            <ModalConfirmacao
-                aberto={acaoPendente !== null}
-                titulo={acaoPendente?.tipo === 'cancelar' ? 'Cancelar esta reunião?' : 'Encerrar esta reunião?'}
-                descricao={
-                    acaoPendente?.tipo === 'cancelar'
-                        ? `"${acaoPendente.reuniao.titulo}" continua no calendário, mas marcada como cancelada. Não dá para desfazer.`
-                        : acaoPendente
-                          ? `"${acaoPendente.reuniao.titulo}" passa a constar como encerrada. Não dá para desfazer.`
-                          : undefined
-                }
-                rotuloConfirmar={acaoPendente?.tipo === 'cancelar' ? 'Cancelar reunião' : 'Encerrar reunião'}
-                rotuloCancelar="Voltar"
-                perigo={acaoPendente?.tipo === 'cancelar'}
-                carregando={executando}
-                onConfirmar={confirmarAcao}
-                onCancelar={() => setAcaoPendente(null)}
-            />
 
             {/* Termo de participação: a inscrição só é enviada depois do aceite, com a versão do termo */}
-            {termoDaReuniao && (
+            {inscricao.termoAberto && (
                 <TermoDeParticipacao
-                    titulo={termoDaReuniao.titulo}
-                    quando={`${capitalizar(format(parseISO(termoDaReuniao.data), "EEEE, d 'de' MMMM", { locale: ptBR }))} · ${termoDaReuniao.horaInicio} - ${termoDaReuniao.horaFim}`}
-                    anfitriao={termoDaReuniao.responsavel}
-                    registro={termoDaReuniao.registro}
-                    enviando={inscricaoEmCurso !== null}
-                    onAceitar={() => void confirmarInscricao()}
-                    onVoltar={() => setTermoDaReuniao(null)}
+                    reuniao={inscricao.termoAberto}
+                    enviando={inscricao.emCurso !== null}
+                    onAceitar={() => void inscricao.aceitar()}
+                    onVoltar={inscricao.fecharTermo}
                 />
             )}
-
-            {/* Cancelar a inscrição pode custar a vaga (se a reunião lotar, não dá para voltar): pede confirmação, sem o vermelho */}
-            <ModalConfirmacao
-                aberto={inscricaoACancelar !== null}
-                titulo="Cancelar a sua inscrição?"
-                descricao={
-                    inscricaoACancelar
-                        ? `Você deixa de ter um lugar em "${inscricaoACancelar.titulo}". Se a reunião lotar, pode não ser possível voltar.`
-                        : undefined
-                }
-                rotuloConfirmar="Cancelar inscrição"
-                rotuloCancelar="Voltar"
-                carregando={inscricaoEmCurso !== null}
-                onConfirmar={confirmarCancelarInscricao}
-                onCancelar={() => setInscricaoACancelar(null)}
-            />
         </LayoutPainel>
+    )
+}
+
+// Quem já fechou o cartão da triagem, por id de usuário. Só em memória (volta ao recarregar), como o ApelidoDestaque
+let triagemAdiadaPor: number | null = null
+
+/**
+ * O convite para a triagem, no painel do dependente que ainda não a enviou. A triagem é opcional (o backend não a exige
+ * para a inscrição, decisão 24): ninguém é mandado para ela. O consentimento de saúde só aparece quando a pessoa a começa.
+ */
+function CartaoTriagem({ idUsuario }: { idUsuario: number }) {
+    const [, atualizar] = useState(0)
+    if (triagemAdiadaPor === idUsuario) {
+        return null
+    }
+
+    const adiar = () => {
+        triagemAdiadaPor = idUsuario
+        atualizar((n) => n + 1)
+    }
+
+    return (
+        <section
+            aria-labelledby="titulo-cartao-triagem"
+            className="mb-8 flex flex-col gap-4 rounded-cartao border border-borda-cartao bg-white p-4 shadow-cartao sm:flex-row sm:items-center md:p-5"
+        >
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-plad-fundo text-plad" aria-hidden="true">
+                <ClipboardList size={24} />
+            </span>
+            <div className="min-w-0 flex-1">
+                <h2 id="titulo-cartao-triagem" className="font-outfit text-lg font-semibold text-black">
+                    Conte um pouco sobre você
+                </h2>
+                <p className="mt-1 text-sm text-gray-700">
+                    A triagem é opcional: algumas perguntas sobre como você está. Só o psicólogo das reuniões em que você se
+                    inscrever lê as respostas, até 30 dias depois da reunião.
+                </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+                <Link to="/Triagem" className={classeBotao('secundario')}>
+                    Responder a triagem
+                </Link>
+                <Botao variante="texto" onClick={adiar}>
+                    Agora não
+                </Botao>
+            </div>
+        </section>
     )
 }
 
@@ -633,148 +490,37 @@ interface PosicaoPopup {
     dy: number
 }
 
-
-// "09:00" - "10:30" → "1 h 30 min"; só para o detalhe do popup expandido
-function duracao(inicio: string, fim: string): string | null {
-    const minutos = (hora: string) => {
-        const [h, m] = hora.split(':').map(Number)
-        return h * 60 + m
-    }
-    const total = minutos(fim) - minutos(inicio)
-    if (!Number.isFinite(total) || total <= 0) return null
-    const h = Math.floor(total / 60)
-    const m = total % 60
-    return [h ? `${h} h` : '', m ? `${m} min` : ''].filter(Boolean).join(' ')
-}
-
 interface PopupReuniaoProps {
-    dia: Date
-    reunioes: Reuniao[]
-    /** Só existe para o psicólogo, em dia de hoje ou futuro */
-    onCriar?: () => void
-    onEditar: (reuniao: Reuniao) => void
-    onCancelar: (reuniao: Reuniao) => void
-    onEncerrar: (reuniao: Reuniao) => void
-    /** Quem vê o popup é um dependente: ele vê as vagas e pode se inscrever */
+    reunioes: MeetingResponseDTO[]
+    /** Quem vê o popup é um dependente: ele pode se inscrever */
     ehDependente: boolean
-    /** Id da reunião cuja inscrição está sendo alterada agora (o botão fica ocupado) */
-    inscricaoEmCurso: string | null
-    onInscrever: (reuniao: Reuniao) => void
-    onCancelarInscricao: (reuniao: Reuniao) => void
+    /** Id da reunião cuja inscrição está sendo enviada agora (o botão fica ocupado) */
+    inscricaoEmCurso: number | null
+    onInscrever: (reuniao: MeetingResponseDTO) => void
 }
 
-// Botões do popup: ele é roxo escuro, então os do tema (azul sobre azul) não têm contraste; contorno branco, 44 px
-const CLASSE_ACAO_POPUP =
-    'inline-flex min-h-11 items-center gap-1.5 rounded-botao border border-white/50 px-3 text-sm font-medium text-white transition-colors hover:bg-white/10 disabled:cursor-wait disabled:opacity-60'
+// O popup é roxo escuro (plad-rodape): a ação principal é branca e cheia; "Ver detalhes" é um link de texto. 44 px de alvo
+const CLASSE_ACAO_PRINCIPAL_POPUP =
+    'inline-flex min-h-11 items-center gap-1.5 rounded-botao bg-white px-4 text-sm font-medium text-plad-rodape transition-colors hover:bg-plad-fundo disabled:cursor-wait disabled:opacity-60'
+const CLASSE_LINK_POPUP = 'inline-flex min-h-11 items-center gap-1 text-sm font-medium text-white underline-offset-4 hover:underline'
 
 /**
- * Lista de quem se inscreveu na reunião, só para o anfitrião. É o único lugar da interface com o NOME REAL de um
- * dependente (decisão 26 do backend). Cada leitura é auditada (uma entrada por inscrito, que ele vê no log de acessos),
- * por isso: nada de buscar ao abrir o popup, só quando a pessoa pede; ao esconder e mostrar de novo, usa o que já leu em
- * vez de ler outra vez; e a lista fica só neste estado, que some quando o popup fecha (nunca em contexto ou storage).
- */
-function ListaInscritos({ reuniaoId, total }: { reuniaoId: string; total: number }) {
-    const idAviso = useId()
-    const [inscritos, setInscritos] = useState<MeetingParticipantDTO[] | null>(null)
-    const [aberta, setAberta] = useState(false)
-    const [carregando, setCarregando] = useState(false)
-    const [erro, setErro] = useState<string | null>(null)
-
-    if (total === 0) {
-        return <p className="text-xs text-gray-200">Ninguém se inscreveu ainda.</p>
-    }
-
-    async function alternar() {
-        setErro(null)
-        if (aberta) {
-            setAberta(false)
-            return
-        }
-        if (inscritos) {
-            setAberta(true)
-            return
-        }
-        setCarregando(true)
-        try {
-            setInscritos(await listParticipants(Number(reuniaoId)))
-            setAberta(true)
-        } catch (e) {
-            setErro(e instanceof ApiError ? e.message : 'Não foi possível carregar os inscritos.')
-        } finally {
-            setCarregando(false)
-        }
-    }
-
-    return (
-        <div className="space-y-2">
-            <button
-                type="button"
-                onClick={alternar}
-                disabled={carregando}
-                aria-expanded={aberta}
-                aria-busy={carregando}
-                aria-describedby={idAviso}
-                className={CLASSE_ACAO_POPUP}
-            >
-                <Users size={14} aria-hidden="true" />
-                {carregando ? 'Carregando…' : aberta ? 'Esconder inscritos' : `Ver inscritos (${total})`}
-            </button>
-            <p id={idAviso} className="text-xs text-gray-200">
-                Ao abrir a lista, o acesso fica registrado e cada pessoa listada pode ver que um psicólogo a consultou.
-            </p>
-            {erro && (
-                <p role="alert" className="text-xs font-semibold text-white">
-                    {erro}
-                </p>
-            )}
-            {aberta && inscritos && (
-                <ul className="max-h-48 space-y-2 overflow-y-auto rounded-lg bg-white/10 p-3 text-xs">
-                    {inscritos.length === 0 && <li className="text-gray-200">Ninguém se inscreveu ainda.</li>}
-                    {inscritos.map((p) => (
-                        <li key={p.nickname}>
-                            <span className="sr-only">Apelido: </span>
-                            <span className="font-semibold text-white">{p.nickname}</span>
-                            <span className="sr-only">. Nome: </span>
-                            <span className="block text-gray-200">{p.real_name}</span>
-                        </li>
-                    ))}
-                </ul>
-            )}
-        </div>
-    )
-}
-
-/**
- * Popup com os detalhes das reuniões do dia. Abre à direita e alinhado ao topo
- * do dia; se não couber na janela, vai para a esquerda e/ou sobe, e por fim é
+ * Popup das reuniões do dia, um padrão só para todos os papéis: título, data e hora, vagas e um selo de situação, no
+ * máximo UMA ação principal (Entrar, só dentro da janela da sala; senão Inscrever-se, para o dependente) e "Ver
+ * detalhes", que leva ao detalhe da reunião, onde ficam as outras ações. Tudo na grade de espaçamento `popup` do @theme.
+ * Abre à direita e alinhado ao topo do dia; se não couber na janela, vai para a esquerda e/ou sobe, e por fim é
  * deslocado o mínimo necessário para ficar totalmente visível.
- * O anfitrião vê, nas reuniões dele, o que ainda pode fazer: editar (antes de começar), cancelar (até terminar) e
- * encerrar (depois de começar). Só reunião agendada tem ações.
  */
-function PopupReuniao({
-    dia,
-    reunioes,
-    onCriar,
-    onEditar,
-    onCancelar,
-    onEncerrar,
-    ehDependente,
-    inscricaoEmCurso,
-    onInscrever,
-    onCancelarInscricao,
-}: PopupReuniaoProps) {
+function PopupReuniao({ reunioes, ehDependente, inscricaoEmCurso, onInscrever }: PopupReuniaoProps) {
     // "Agora" anda sozinho nos limites das reuniões do dia (a sala abre 10 min antes, o início, o fim): o "Entrar" aparece
-    // e "Editar"/"Encerrar" trocam de lugar sem fechar o popup. Se a situação ainda assim mudar sem que a tela perceba, o
-    // backend responde 409 e a lista é buscada de novo.
+    // e o selo muda sem fechar o popup. Se a situação ainda assim mudar sem que a tela perceba, o backend responde 409.
     const limitesDoRelogio = useMemo(
-        () => reunioes.flatMap((r) => [aberturaDaSala({ starts_at: r.inicio }), Date.parse(r.inicio), Date.parse(r.fim)]),
+        () => reunioes.flatMap((m) => [aberturaDaSala(m), Date.parse(m.starts_at), Date.parse(m.ends_at)]),
         [reunioes],
     )
     const agora = useAgora(limitesDoRelogio)
     const popupRef = useRef<HTMLDivElement>(null)
     const [pos, setPos] = useState<PosicaoPopup>({ lado: 'direita', vertical: 'topo', dx: 0, dy: 0 })
-    // O botão de expandir (canto do popup) mostra a duração e quem organiza; o popup cresce e se reposiciona
-    const [expandido, setExpandido] = useState(false)
 
     useLayoutEffect(() => {
         function reposicionar() {
@@ -819,7 +565,8 @@ function PopupReuniao({
         reposicionar()
         window.addEventListener('resize', reposicionar)
         return () => window.removeEventListener('resize', reposicionar)
-    }, [expandido])
+        // A altura muda quando uma reunião do dia muda (a inscrição tira o botão e põe o selo): reposiciona
+    }, [reunioes])
 
     return (
         <div
@@ -828,384 +575,68 @@ function PopupReuniao({
             aria-label="Reuniões do dia"
             style={pos.dx || pos.dy ? { transform: `translate(${pos.dx}px, ${pos.dy}px)` } : undefined}
             className={[
-                'absolute z-20 space-y-3 rounded-xl bg-plad-rodape p-4 text-white shadow-2xl transition-[width]',
-                expandido ? 'w-80' : 'w-64',
+                'absolute z-20 w-72 divide-y divide-white/20 rounded-cartao bg-plad-rodape px-popup text-white shadow-2xl',
                 pos.lado === 'direita' ? 'left-full ml-3' : 'right-full mr-3',
                 pos.vertical === 'topo' ? 'top-0' : 'bottom-0',
             ].join(' ')}
         >
-            <button
-                type="button"
-                onClick={() => setExpandido((atual) => !atual)}
-                aria-expanded={expandido}
-                aria-label={expandido ? 'Recolher detalhes da reunião' : 'Expandir detalhes da reunião'}
-                className="-mr-2 -mt-2 ml-auto flex size-11 items-center justify-center rounded-botao text-plad-claro transition hover:bg-white/10"
-            >
-                {expandido ? <Minimize2 size={16} aria-hidden="true" /> : <Maximize2 size={16} aria-hidden="true" />}
-            </button>
-            {reunioes.map((r) => (
-                <div key={r.id} className="-mt-3 space-y-1">
-                    <p className={`font-outfit text-sm font-semibold leading-snug ${r.status === 'cancelled' ? 'line-through' : ''}`.trim()}>
-                        {r.titulo}
-                    </p>
-                    <p className="text-xs text-gray-200">
-                        {capitalizar(format(dia, "EEEE, d 'de' MMMM", { locale: ptBR }))} · {r.horaInicio} - {r.horaFim}
-                    </p>
-                    {/* O risco sozinho não basta (leitor de tela, daltonismo): o estado também vai em texto */}
-                    {r.status !== 'scheduled' && (
-                        <p className="text-xs font-semibold text-gray-200">
-                            {r.status === 'cancelled' ? 'Reunião cancelada' : 'Reunião encerrada'}
-                        </p>
-                    )}
-                    {/* Vagas: só de reunião agendada que ainda não começou (nas outras, o número não diz nada) */}
-                    {r.status === 'scheduled' && agora < Date.parse(r.inicio) && (
-                        <p className="text-xs font-semibold text-white">
-                            {textoDeVagas(vagasRestantes(r.capacidade, r.inscritos))}
-                            {r.inscritoPorMim && ' · Inscrição confirmada'}
-                        </p>
-                    )}
-                    {ehDependente && r.status === 'scheduled' && agora < Date.parse(r.inicio) && (
-                        <div className="flex flex-wrap gap-2 pt-1">
-                            {r.inscritoPorMim ? (
+            {reunioes.map((m) => {
+                const selo = seloDaReuniao(m, agora)
+                const aceita = aceitaInscricao(m, agora)
+                const vagas = vagasRestantes(m.capacity, m.registered_count)
+                const entrar = podeEntrar(m, agora)
+                const inscrever = !entrar && ehDependente && aceita && !m.registered_by_me && vagas > 0
+                return (
+                    <article key={m.id} aria-label={m.title} className="flex flex-col gap-popup py-popup">
+                        <div>
+                            <p
+                                className={`font-outfit text-sm font-semibold leading-snug ${m.status === 'cancelled' ? 'line-through' : ''}`.trim()}
+                            >
+                                {m.title}
+                            </p>
+                            <p className="text-xs text-gray-200">{formatarHorario(m.starts_at, m.ends_at)}</p>
+                        </div>
+
+                        {/* O risco no título sozinho não basta (leitor de tela, daltonismo): a situação também vai em texto */}
+                        {(aceita || selo) && (
+                            <div className="flex flex-wrap items-center gap-popup text-xs">
+                                {/* Vagas: só enquanto a reunião aceita inscrição (nas outras, o número não diz nada) */}
+                                {aceita && <span className="font-semibold">{textoDeVagas(vagas)}</span>}
+                                {selo && (
+                                    <span className="rounded-botao border border-white/60 px-2 py-0.5 font-semibold">{selo}</span>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-popup">
+                            {/* A sala: o anfitrião e o dependente inscrito entram de 10 min antes do início até o fim */}
+                            {entrar && (
+                                <Link to={`/reuniao/${m.id}`} className={CLASSE_ACAO_PRINCIPAL_POPUP}>
+                                    <DoorOpen size={16} aria-hidden="true" />
+                                    Entrar
+                                </Link>
+                            )}
+                            {inscrever && (
                                 <button
                                     type="button"
-                                    onClick={() => onCancelarInscricao(r)}
+                                    onClick={() => onInscrever(m)}
                                     disabled={inscricaoEmCurso !== null}
-                                    aria-busy={inscricaoEmCurso === r.id}
-                                    className={CLASSE_ACAO_POPUP}
+                                    aria-busy={inscricaoEmCurso === m.id}
+                                    className={CLASSE_ACAO_PRINCIPAL_POPUP}
                                 >
-                                    <UserMinus size={14} aria-hidden="true" />
-                                    Cancelar inscrição
+                                    <UserPlus size={16} aria-hidden="true" />
+                                    {inscricaoEmCurso === m.id ? 'Inscrevendo…' : 'Inscrever-se'}
                                 </button>
-                            ) : (
-                                vagasRestantes(r.capacidade, r.inscritos) > 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => onInscrever(r)}
-                                        disabled={inscricaoEmCurso !== null}
-                                        aria-busy={inscricaoEmCurso === r.id}
-                                        className={CLASSE_ACAO_POPUP}
-                                    >
-                                        <UserPlus size={14} aria-hidden="true" />
-                                        {inscricaoEmCurso === r.id ? 'Inscrevendo…' : 'Inscrever-se'}
-                                    </button>
-                                )
                             )}
-                        </div>
-                    )}
-                    {/* A sala: o anfitrião e o dependente inscrito entram de 10 min antes do início até o fim */}
-                    {podeEntrar(
-                        {
-                            status: r.status,
-                            starts_at: r.inicio,
-                            ends_at: r.fim,
-                            owned_by_me: r.minha,
-                            registered_by_me: r.inscritoPorMim,
-                        },
-                        agora,
-                    ) && (
-                        <div className="pt-1">
-                            <Link to={`/reuniao/${r.id}`} className={CLASSE_ACAO_POPUP}>
-                                <DoorOpen size={14} aria-hidden="true" />
-                                Entrar na reunião
+                            <Link to={`/minhas-reunioes/${m.id}`} className={CLASSE_LINK_POPUP}>
+                                Ver detalhes
+                                <ChevronRight size={16} aria-hidden="true" />
                             </Link>
                         </div>
-                    )}
-                    {r.minha && r.status === 'scheduled' && (
-                        <div className="flex flex-wrap gap-2 pt-1">
-                            {agora < Date.parse(r.inicio) && (
-                                <button type="button" onClick={() => onEditar(r)} className={CLASSE_ACAO_POPUP}>
-                                    <Pencil size={14} aria-hidden="true" />
-                                    Editar
-                                </button>
-                            )}
-                            {agora >= Date.parse(r.inicio) && (
-                                <button type="button" onClick={() => onEncerrar(r)} className={CLASSE_ACAO_POPUP}>
-                                    <Check size={14} aria-hidden="true" />
-                                    Encerrar
-                                </button>
-                            )}
-                            {agora < Date.parse(r.fim) && (
-                                <button type="button" onClick={() => onCancelar(r)} className={CLASSE_ACAO_POPUP}>
-                                    <Ban size={14} aria-hidden="true" />
-                                    Cancelar
-                                </button>
-                            )}
-                        </div>
-                    )}
-                    {/* O anfitrião vê quem se inscreveu, em qualquer estado da reunião (cancelada e encerrada incluídas) */}
-                    {r.minha && <ListaInscritos reuniaoId={r.id} total={r.inscritos} />}
-                    {expandido && (
-                        <dl className="space-y-1 border-t border-white/20 pt-2 text-xs text-gray-200">
-                            {duracao(r.horaInicio, r.horaFim) && (
-                                <div className="flex gap-2">
-                                    <dt className="font-semibold text-white">Duração</dt>
-                                    <dd>{duracao(r.horaInicio, r.horaFim)}</dd>
-                                </div>
-                            )}
-                            {r.responsavel && (
-                                <div className="flex items-center gap-2">
-                                    <dt className="flex items-center gap-1.5 font-semibold text-white">
-                                        <User size={12} aria-hidden="true" />
-                                        Organizador
-                                    </dt>
-                                    <dd>{r.responsavel}</dd>
-                                </div>
-                            )}
-                            {/* O que o anfitrião informou no cadastro (o sistema não o confere): para conferir quem conduz */}
-                            {r.registro && (
-                                <div className="flex gap-2">
-                                    <dt className="font-semibold text-white">Registro</dt>
-                                    <dd>{r.registro}</dd>
-                                </div>
-                            )}
-                        </dl>
-                    )}
-                </div>
-            ))}
-            {reunioes.length === 0 && (
-                <p className="-mt-3 text-sm text-gray-200">Nenhuma reunião neste dia.</p>
-            )}
-            {onCriar && (
-                <button type="button" onClick={onCriar} className={CLASSE_ACAO_POPUP}>
-                    <Plus size={14} aria-hidden="true" />
-                    Criar reunião neste dia
-                </button>
-            )}
+                    </article>
+                )
+            })}
         </div>
-    )
-}
-
-interface FormularioReuniaoProps {
-    /** Null para criar; a reunião para editar */
-    reuniao: Reuniao | null
-    /** "yyyy-MM-dd" que já vem no campo Data ao criar */
-    diaInicial: string
-    onFechar: () => void
-    onSalvo: (editada: boolean) => void
-}
-
-type CamposReuniao = 'title' | 'description' | 'data' | 'starts_at' | 'ends_at' | 'capacity'
-
-/**
- * Criar e editar reunião (psicólogo). Data e horários são no fuso do navegador e viram instantes ISO-8601 no envio.
- * Os erros do backend (VALIDATION_ERROR e INVALID_MEETING trazem `errors` por campo) aparecem ao lado de cada campo;
- * o 409 (cruza outra reunião sua, ou a reunião mudou de situação) vai num aviso geral. Nada digitado se perde no erro.
- */
-function FormularioReuniao({ reuniao, diaInicial, onFechar, onSalvo }: FormularioReuniaoProps) {
-    const painel = useRef<HTMLDivElement>(null)
-    const formRef = useRef<HTMLFormElement>(null)
-    const idTitulo = useId()
-    const [titulo, setTitulo] = useState(reuniao?.titulo ?? '')
-    const [descricao, setDescricao] = useState(reuniao?.descricao ?? '')
-    // Data e horas são texto com máscara (dd/mm/aaaa, hh:mm 24 h): os campos nativos seguem o idioma do navegador
-    const [data, setData] = useState(() => isoParaData(reuniao?.data ?? diaInicial))
-    const [inicio, setInicio] = useState(reuniao?.horaInicio ?? '')
-    const [fim, setFim] = useState(reuniao?.horaFim ?? '')
-    const [capacidade, setCapacidade] = useState(reuniao ? String(reuniao.capacidade) : '')
-    const [erros, setErros] = useState<Partial<Record<CamposReuniao, string>>>({})
-    const [erroGeral, setErroGeral] = useState<string | null>(null)
-    const [enviando, setEnviando] = useState(false)
-
-    useArmadilhaFoco(painel, true, () => {
-        if (!enviando) onFechar()
-    })
-
-    // Depois de mostrar os erros, o foco vai para o primeiro campo inválido
-    function focarPrimeiroInvalido() {
-        requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
-    }
-
-    async function enviar(e: FormEvent) {
-        e.preventDefault()
-        if (enviando) return
-
-        const locais: Partial<Record<CamposReuniao, string>> = {}
-        const dataLida = lerData(data)
-        const inicioLido = lerHora(inicio)
-        const fimLido = lerHora(fim)
-        if (!titulo.trim()) locais.title = 'Campo obrigatório.'
-        if (!data) locais.data = 'Campo obrigatório.'
-        else if ('erro' in dataLida) locais.data = dataLida.erro
-        if (!inicio) locais.starts_at = 'Campo obrigatório.'
-        else if ('erro' in inicioLido) locais.starts_at = inicioLido.erro
-        if (!fim) locais.ends_at = 'Campo obrigatório.'
-        else if ('erro' in fimLido) locais.ends_at = fimLido.erro
-        if (!capacidade) locais.capacity = 'Campo obrigatório.'
-        setErroGeral(null)
-        // Os três `'erro' in` já estão em `locais`; repetidos aqui, garantem ao TypeScript que daqui para baixo tudo foi lido
-        if (Object.keys(locais).length > 0 || 'erro' in dataLida || 'erro' in inicioLido || 'erro' in fimLido) {
-            setErros(locais)
-            focarPrimeiroInvalido()
-            return
-        }
-
-        const corpo: MeetingRequestDTO = {
-            title: titulo.trim(),
-            description: descricao.trim() || null,
-            // data e horas digitadas são do fuso do navegador; o backend recebe o instante
-            starts_at: new Date(`${dataLida.iso}T${inicioLido.hora}`).toISOString(),
-            ends_at: new Date(`${dataLida.iso}T${fimLido.hora}`).toISOString(),
-            capacity: Number(capacidade),
-        }
-
-        setEnviando(true)
-        try {
-            if (reuniao) {
-                await updateMeeting(Number(reuniao.id), corpo)
-            } else {
-                await createMeeting(corpo)
-            }
-            onSalvo(reuniao !== null)
-        } catch (erro) {
-            const doServidor = errosPorCampo(erro)
-            const porCampo: Partial<Record<CamposReuniao, string>> = {}
-            for (const campo of ['title', 'description', 'starts_at', 'ends_at', 'capacity'] as const) {
-                if (doServidor[campo]) porCampo[campo] = doServidor[campo]
-            }
-            setErros(porCampo)
-            if (Object.keys(porCampo).length > 0) {
-                focarPrimeiroInvalido()
-            } else {
-                // 409, 403, 404, rede fora do ar...: a mensagem já vem em pt-BR do ApiError
-                setErroGeral(erro instanceof ApiError ? erro.message : 'Algo deu errado. Tente novamente em instantes.')
-            }
-        } finally {
-            setEnviando(false)
-        }
-    }
-
-    return createPortal(
-        <div
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
-            onMouseDown={(e) => {
-                if (e.target === e.currentTarget && !enviando) onFechar()
-            }}
-        >
-            <div
-                ref={painel}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby={idTitulo}
-                tabIndex={-1}
-                className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-cartao bg-white p-6 shadow-xl"
-            >
-                <form ref={formRef} onSubmit={enviar} noValidate className="space-y-4">
-                    <h2 id={idTitulo} className="font-outfit text-xl font-semibold text-black">
-                        {reuniao ? 'Editar reunião' : 'Criar reunião'}
-                    </h2>
-
-                    <Campo rotulo="Título" erro={erros.title}>
-                        {(c) => (
-                            <input
-                                {...c}
-                                type="text"
-                                name="title"
-                                value={titulo}
-                                onChange={(e) => setTitulo(e.target.value)}
-                                maxLength={120}
-                                autoComplete="off"
-                                aria-required="true"
-                            />
-                        )}
-                    </Campo>
-
-                    <Campo rotulo="Descrição (opcional)" erro={erros.description} ajuda="Conte do que se trata a reunião.">
-                        {(c) => (
-                            <textarea
-                                {...c}
-                                name="description"
-                                value={descricao}
-                                onChange={(e) => setDescricao(e.target.value)}
-                                maxLength={2000}
-                                rows={3}
-                            />
-                        )}
-                    </Campo>
-
-                    <Campo rotulo="Data" erro={erros.data}>
-                        {(c) => (
-                            <EntradaComMascara
-                                {...c}
-                                mascara={mascararData}
-                                name="date"
-                                placeholder="dd/mm/aaaa"
-                                autoComplete="off"
-                                maxLength={10}
-                                value={data}
-                                onValor={setData}
-                                aria-required="true"
-                            />
-                        )}
-                    </Campo>
-
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <Campo rotulo="Início" erro={erros.starts_at} ajuda="Pelo menos 60 minutos a partir de agora.">
-                            {(c) => (
-                                <EntradaComMascara
-                                    {...c}
-                                    mascara={mascararHora}
-                                    name="starts_at"
-                                    placeholder="hh:mm"
-                                    autoComplete="off"
-                                    maxLength={5}
-                                    value={inicio}
-                                    onValor={setInicio}
-                                    aria-required="true"
-                                />
-                            )}
-                        </Campo>
-                        <Campo rotulo="Fim" erro={erros.ends_at} ajuda="A reunião dura de 15 minutos a 3 horas.">
-                            {(c) => (
-                                <EntradaComMascara
-                                    {...c}
-                                    mascara={mascararHora}
-                                    name="ends_at"
-                                    placeholder="hh:mm"
-                                    autoComplete="off"
-                                    maxLength={5}
-                                    value={fim}
-                                    onValor={setFim}
-                                    aria-required="true"
-                                />
-                            )}
-                        </Campo>
-                    </div>
-
-                    <Campo rotulo="Capacidade" erro={erros.capacity} ajuda="De 2 a 30 pessoas.">
-                        {(c) => (
-                            <input
-                                {...c}
-                                type="number"
-                                inputMode="numeric"
-                                name="capacity"
-                                value={capacidade}
-                                onChange={(e) => setCapacidade(e.target.value)}
-                                min={2}
-                                max={30}
-                                aria-required="true"
-                            />
-                        )}
-                    </Campo>
-
-                    {erroGeral && (
-                        <p role="alert" className="rounded-campo bg-erro-fundo px-4 py-3 text-sm text-erro">
-                            {erroGeral}
-                        </p>
-                    )}
-
-                    <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-                        <Botao variante="secundario" onClick={onFechar} disabled={enviando}>
-                            Voltar
-                        </Botao>
-                        <Botao type="submit" carregando={enviando}>
-                            {reuniao ? 'Salvar alterações' : 'Criar reunião'}
-                        </Botao>
-                    </div>
-                </form>
-            </div>
-        </div>,
-        document.body,
     )
 }
 

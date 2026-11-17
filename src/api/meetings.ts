@@ -128,6 +128,28 @@ export function textoDeVagas(restantes: number): string {
     return restantes === 1 ? '1 vaga restante' : `${restantes} vagas restantes`
 }
 
+/**
+ * O selo de situação de uma reunião, o mesmo no popup do dia, nos cartões e no detalhe. Um só, pela ordem: cancelada,
+ * encerrada (o anfitrião encerrou ou o fim já passou: o status não vira sozinho), em andamento, inscrito (o dependente
+ * que vê) e "Sua reunião" (o anfitrião que vê). Uma reunião agendada de outra pessoa, que ainda não começou, não tem selo.
+ */
+export function seloDaReuniao(
+    m: Pick<MeetingResponseDTO, 'status' | 'starts_at' | 'ends_at' | 'owned_by_me' | 'registered_by_me'>,
+    agora: number,
+): string | null {
+    if (m.status === 'cancelled') return 'Cancelada'
+    if (m.status === 'ended' || agora >= Date.parse(m.ends_at)) return 'Encerrada'
+    if (agora >= Date.parse(m.starts_at)) return 'Em andamento'
+    if (m.registered_by_me) return 'Inscrito'
+    if (m.owned_by_me) return 'Sua reunião'
+    return null
+}
+
+/** A reunião ainda aceita inscrição: agendada e não começou (a vaga é outra conta, `vagasRestantes`) */
+export function aceitaInscricao(m: Pick<MeetingResponseDTO, 'status' | 'starts_at'>, agora: number): boolean {
+    return m.status === 'scheduled' && agora < Date.parse(m.starts_at)
+}
+
 /** Mensagem pt-BR para uma falha ao se inscrever ou cancelar a inscrição (o 409 de estado fala da inscrição, não do horário do anfitrião) */
 export function mensagemDeInscricao(erro: unknown): string {
     if (erro instanceof ApiError) {

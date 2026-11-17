@@ -25,7 +25,6 @@ import { classeBotao } from '../components/estilos'
 import useAgora from '../components/useAgora'
 import useContagem from '../components/useContagem'
 import useTitulo from '../components/useTitulo'
-import { useSessao } from '../session/SessaoContext'
 
 /**
  * A sala ao vivo (RF005/RF006), frame /reuniao-2 do Figma, contrato nas decisões 28 a 31 do backend. Esta página só
@@ -69,7 +68,6 @@ export default function Reuniao() {
     const { id } = useParams()
     const reuniaoId = Number(id)
     const idValido = Number.isInteger(reuniaoId) && reuniaoId > 0
-    const { me } = useSessao()
     const { avisar } = useToast()
     const { restante: esperaRestante, iniciar: iniciarEspera } = useContagem()
 
@@ -99,7 +97,8 @@ export default function Reuniao() {
     const agora = useAgora(limitesDoRelogio)
     useTitulo(reuniao ? reuniao.title : 'Reunião')
 
-    const voltarPara = me?.type_user === 'psicologo' ? '/Calendario' : '/minhas-reunioes'
+    // "Voltar" leva ao detalhe desta reunião (para os dois papéis), de onde se volta às outras
+    const voltarPara = `/minhas-reunioes/${id}`
 
     // A página está viva (StrictMode monta, desmonta e monta de novo em desenvolvimento)
     useEffect(() => {

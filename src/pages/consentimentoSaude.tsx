@@ -43,7 +43,11 @@ export default function ConsentimentoSaude() {
         return null // a RotaProtegida só renderiza esta rota com a sessão pronta
     }
 
-    const destino = caminhoInterno((location.state as { de?: unknown } | null)?.de) ?? destinoPorPapel(me)
+    const de = caminhoInterno((location.state as { de?: unknown } | null)?.de)
+    const destino = de ?? destinoPorPapel(me)
+    // "Agora não" volta para onde a pessoa estava (o detalhe da reunião, o painel), menos para a triagem, que mandaria
+    // de volta para cá: daí vai para o painel
+    const destinoAgoraNao = de && de.toLowerCase() !== '/triagem' ? de : destinoPorPapel(me)
 
     // Quem já aceitou (ou abriu o endereço à mão) não tem o que fazer aqui
     if (me.health_consent_pending === false) {
@@ -77,12 +81,10 @@ export default function ConsentimentoSaude() {
                             {erro}
                         </p>
                     )}
+                    {/* A barra fixa tem só a ação principal; "Agora não" é um link logo abaixo do cartão */}
                     <Botao bloco carregando={enviando} disabled={!aceitou} onClick={() => void aceitar()}>
                         {enviando ? 'Registrando…' : 'Aceitar e continuar'}
                     </Botao>
-                    <Link to="/Calendario" replace className={classeBotao('texto', true)}>
-                        Agora não
-                    </Link>
                 </>
             }
         >
@@ -134,6 +136,13 @@ export default function ConsentimentoSaude() {
                         Li e autorizo a PLAD a tratar os meus dados de saúde (versão {VERSOES_CONSENTIMENTO.saude}).
                     </span>
                 </label>
+            </div>
+
+            {/* Recusar não grava nada: a pessoa volta para onde estava e pode aceitar quando quiser */}
+            <div className="mt-4 text-center">
+                <Link to={destinoAgoraNao} replace className={classeBotao('texto')}>
+                    Agora não
+                </Link>
             </div>
         </LayoutPagina>
     )

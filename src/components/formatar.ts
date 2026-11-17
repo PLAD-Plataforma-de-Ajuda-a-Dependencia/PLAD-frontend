@@ -13,6 +13,11 @@ export function formatarDataHora(iso: string): string {
     return format(parseISO(iso), "dd/MM/yyyy 'às' HH:mm")
 }
 
+/** "18/11/2026 · 18:30 às 19:30": a data (como `formatarData`) e o horário de uma reunião, no fuso do navegador */
+export function formatarHorario(inicioIso: string, fimIso: string): string {
+    return `${formatarData(inicioIso)} · ${format(parseISO(inicioIso), 'HH:mm')} às ${format(parseISO(fimIso), 'HH:mm')}`
+}
+
 /**
  * "CRP 06/123456": o backend guarda o registro só com letras e dígitos ("06123456"), e a tela devolve a barra entre a
  * região (os 2 primeiros dígitos) e o número. Qualquer outro valor sai como foi guardado (contas antigas: "CRM …").

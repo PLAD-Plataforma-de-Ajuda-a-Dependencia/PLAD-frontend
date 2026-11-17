@@ -24,6 +24,8 @@ const Reuniao = lazy(() => import('./pages/reuniao'))
 const Calendario = lazy(() => import('./pages/Calendario'))
 const AdminPsico = lazy(() => import('./pages/adminPsico'))
 const Triagens = lazy(() => import('./pages/triagens'))
+// O detalhe da reunião traz o formulário de reunião e o termo de participação, que só servem a quem está logado
+const DetalheReuniao = lazy(() => import('./pages/detalheReuniao'))
 
 // O que aparece enquanto o pedaço da página chega (o mesmo `Carregando` de tela cheia das outras esperas)
 function SobDemanda({ mensagem, children }: { mensagem: string; children: ReactNode }) {
@@ -54,9 +56,18 @@ export default function App() {
                             <Route path="/Triagem" element={<Triagem />} />
                             {/* O consentimento para tratar dado de saúde: a triagem e a inscrição em reunião mandam para cá */}
                             <Route path="/consentimento-saude" element={<ConsentimentoSaude />} />
-                            <Route path="/minhas-reunioes" element={<MinhasReunioes />} />
                         </Route>
                         <Route element={<RotaProtegida papeis={['dependente', 'psicologo']} />}>
+                            {/* As reuniões de cada um (inscritas ou criadas) e o detalhe de qualquer reunião do calendário */}
+                            <Route path="/minhas-reunioes" element={<MinhasReunioes />} />
+                            <Route
+                                path="/minhas-reunioes/:id"
+                                element={
+                                    <SobDemanda mensagem="Carregando a reunião…">
+                                        <DetalheReuniao />
+                                    </SobDemanda>
+                                }
+                            />
                             <Route
                                 path="/Calendario"
                                 element={

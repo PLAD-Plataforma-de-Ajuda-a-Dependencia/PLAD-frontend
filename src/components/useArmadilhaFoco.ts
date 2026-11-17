@@ -5,7 +5,7 @@ const FOCAVEIS =
 
 /**
  * Mantém o foco do teclado dentro de `raiz` enquanto `ativo` (modais e gavetas): leva o foco para o primeiro item,
- * faz o Tab circular, fecha com Esc e devolve o foco a quem o tinha antes.
+ * faz o Tab circular, fecha com Esc e devolve o foco a quem o tinha antes (ou ao `#conteudo`, se quem abriu sumiu).
  */
 export default function useArmadilhaFoco(raiz: RefObject<HTMLElement | null>, ativo: boolean, aoFechar?: () => void) {
     // O callback muda a cada render do pai; guardá-lo aqui evita reiniciar o efeito (e roubar o foco de novo)
@@ -47,7 +47,10 @@ export default function useArmadilhaFoco(raiz: RefObject<HTMLElement | null>, at
         document.addEventListener('keydown', aoTeclar)
         return () => {
             document.removeEventListener('keydown', aoTeclar)
-            anterior?.focus()
+            // Quem abriu pode ter saído da tela enquanto isso (um popup que fechou): o foco vai para o conteúdo principal,
+            // em vez de cair no <body> e o teclado recomeçar do topo da página
+            if (anterior?.isConnected) anterior.focus()
+            else document.getElementById('conteudo')?.focus()
         }
     }, [raiz, ativo])
 }

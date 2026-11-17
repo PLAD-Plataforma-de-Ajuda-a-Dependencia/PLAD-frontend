@@ -19,6 +19,7 @@ import { useToast } from '../components/ToastContext'
 import { classeBotao } from '../components/estilos'
 import { formatarDataHora } from '../components/formatar'
 import useListaPaginada from '../components/useListaPaginada'
+import useVoltar from '../components/useVoltar'
 import { destinoPorPapel, useSessao } from '../session/SessaoContext'
 
 /**
@@ -442,6 +443,8 @@ function ExcluirConta() {
 
 export default function MinhaConta() {
     const { me } = useSessao()
+    // Volta para onde a pessoa estava; aberta direto (sem histórico no app), vai para o painel do papel, nunca para a triagem
+    const voltar = useVoltar(me ? destinoPorPapel(me) : '/')
     if (!me) {
         return null
     }
@@ -449,12 +452,13 @@ export default function MinhaConta() {
     return (
         <LayoutPagina titulo="Minha conta">
             <div className="flex w-full flex-1 flex-col items-center gap-5 pb-4">
-                <Link
-                    to={destinoPorPapel(me)}
+                <button
+                    type="button"
+                    onClick={voltar}
                     className="-ml-3 inline-flex min-h-11 items-center gap-1.5 self-start px-3 text-sm font-medium text-plad hover:underline"
                 >
                     <ArrowLeft size={16} aria-hidden="true" /> Voltar
-                </Link>
+                </button>
                 <h1 className="text-center font-outfit text-3xl font-semibold text-black sm:text-4xl">Minha conta</h1>
                 <p className="mb-3 break-all text-center text-sm text-black">{me.email}</p>
 
